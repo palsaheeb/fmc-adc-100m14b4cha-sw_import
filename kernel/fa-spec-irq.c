@@ -107,13 +107,8 @@ irqreturn_t fa_spec_irq_handler(int irq_core_base, void *ptr)
 	fa->last_irq_core_src = irq_core_base;
 
 out:
-	/*
-	 * DMA transaction is finished
-	 * we can safely lower CSET_BUSY
-	 */
-	spin_lock(&cset->lock);
-	cset->flags &= ~ZIO_CSET_HW_BUSY;
-	spin_unlock(&cset->lock);
+	/* DMA is over, CSET is not busy anymore */
+	zio_cset_busy_clear(cset, 1);
 
 	/* ack the irq */
 	fa->fmc->op->irq_ack(fa->fmc);

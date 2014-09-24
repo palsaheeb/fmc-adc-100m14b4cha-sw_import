@@ -261,6 +261,12 @@ static void fa_irq_work(struct work_struct *work)
 	struct zio_cset *cset = fa->zdev->cset;
 	int res;
 
+	/* There is no block ready */
+	if (unlikely(!cset->interleave->priv_d)) {
+		dev_warn(&fa->fmc->dev, "attempt to run DMA without block\n");
+	        goto out_no_block;
+	}
+
 	zfat_irq_acq_end(cset);
 	res = zfad_dma_start(cset);
 	if (!res) {
@@ -282,12 +288,9 @@ static void fa_irq_work(struct work_struct *work)
 
 		zfad_dma_done(cset);
 	}
-	/*
-	 * Lower CSET_HW_BUSY
-	 */
-	spin_lock(&cset->lock);
-	cset->flags &= ~ZIO_CSET_HW_BUSY;
-	spin_unlock(&cset->lock);
+out_no_block:
+	/* DMA is over, CSET is not busy anymore */
+	zio_cset_busy_clear(cset, 1);
 
 end:
 	if (res) {
@@ -359,31 +362,22 @@ irqreturn_t fa_irq_handler(int irq_core_base, void *dev_id)
 	dev_dbg(&fa->fmc->dev, "Handle ADC interrupts fmc slot: %d\n",
 		fmc->slot_id);
 
-	if (status & FA_IRQ_ADC_ACQ_END) {
-		/*
-		 * Acquiring samples is a critical section
-		 * protected against any concurrent abbort trigger.
-		 * This is done by raising the flag CSET_BUSY at ACQ_END
-		 * and lowered it at the end of DMA_END.
-		 */
-		spin_lock_irqsave(&cset->lock, flags);
-		zfad_block = cset->interleave->priv_d;
-		/* Check first if any concurrent trigger stop */
-		/* has deleted zio blocks. In such a case */
-		/* the flag is not raised and nothing is done */
-		if (zfad_block != NULL && (cset->ti->flags & ZIO_TI_ARMED))
-			cset->flags |= ZIO_CSET_HW_BUSY;
-		spin_unlock_irqrestore(&cset->lock, flags);
-		if (cset->flags & ZIO_CSET_HW_BUSY) {
-			/* Job deferred to the workqueue: */
-			/* Start DMA and ack irq on the carrier */
-			queue_work(fa_workqueue, &fa->irq_work);
-			/* register the core firing the IRQ in order to */
-			/* check right IRQ seq.: ACQ_END followed by DMA_END */
-			fa->last_irq_core_src = irq_core_base;
-		} else /* current Acquiistion has been stopped */
-			fmc->op->irq_ack(fmc);
+	/*
+	 * Set cset 'busy' to prevent concurrent abort while work is running.
+	 * It also prevent concurrent abort while this irq handler is running
+	 * in the following section
+	 */
+	zio_cset_busy_set(cset, 1);
+	if (status & FA_IRQ_ADC_ACQ_END && (cset->ti->flags & ZIO_TI_ARMED)) {
+		/* Job deferred to the workqueue: */
+		/* Start DMA and ack irq on the carrier */
+		queue_work(fa_workqueue, &fa->irq_work);
+		/* register the core firing the IRQ in order to */
+		/* check right IRQ seq.: ACQ_END followed by DMA_END */
+		fa->last_irq_core_src = irq_core_base;
+		/* The work will release the cset (zio_cset_busy_clear())*/
 	} else { /* unexpected interrupt we have to ack anyway */
+		zio_cset_busy_clear(cset, 1);
 		dev_err(&fa->fmc->dev,
 			"%s unexpected interrupt 0x%x\n",
 			__func__, status);
