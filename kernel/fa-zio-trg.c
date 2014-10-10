@@ -361,10 +361,6 @@ static int zfat_arm_trigger(struct zio_ti *ti)
 			dev_mem_off, size);
 	}
 
-	err = ti->cset->raw_io(ti->cset);
-	if (err != -EAGAIN && err != 0)
-		goto out_allocate;
-
 	return err;
 
 out_allocate:
