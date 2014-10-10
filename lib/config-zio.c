@@ -164,51 +164,63 @@ static int fmcadc_zio_config_trg(struct __fmcadc_dev_zio *fa,
 	switch (index) {
 	case FMCADC_CONF_TRG_SOURCE:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/external",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/external",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/external",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/external",
+						value);
 		break;
 	case FMCADC_CONF_TRG_SOURCE_CHAN:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/int-channel",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/int-channel",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/int-channel",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/int-channel",
+						value);
 		break;
 	case FMCADC_CONF_TRG_THRESHOLD:
 		if (direction)
 			return fa_zio_sysfs_set(fa,
-					"cset0/trigger/int-threshold", value);
+						"cset0/trigger/instance-attributes/int-threshold",
+						value);
 		else
 			return fa_zio_sysfs_get(fa,
-					"cset0/trigger/int-threshold", value);
+						"cset0/trigger/instance-attributes/int-threshold",
+						value);
 		break;
 	case FMCADC_CONF_TRG_POLARITY:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/polarity",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/polarity",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/polarity",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/polarity",
+						value);
 		break;
 	case FMCADC_CONF_TRG_DELAY:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/delay",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/delay",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/delay",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/delay",
+						value);
 		break;
 	case FMCADC_CONF_TRG_THRESHOLD_FILTER:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/int-threshold-filter",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/int-threshold-filter",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/int-threshold-filter",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/int-threshold-filter",
+						value);
 		break;
 	default:
 		errno = FMCADC_ENOCAP;
@@ -221,35 +233,43 @@ static int fmcadc_zio_config_acq(struct __fmcadc_dev_zio *fa,
 	switch (index) {
 	case FMCADC_CONF_ACQ_N_SHOTS:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/nshots",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/nshots",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/nshots",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/nshots",
+						value);
 		break;
 	case FMCADC_CONF_ACQ_POST_SAMP:
 		if (direction)
 			return fa_zio_sysfs_set(fa,
-					"cset0/trigger/post-samples", value);
+						"cset0/trigger/instance-attributes/post-samples",
+						value);
 		else
 			return fa_zio_sysfs_get(fa,
-					"cset0/trigger/post-samples", value);
+						"cset0/trigger/instance-attributes/post-samples",
+						value);
 		break;
 	case FMCADC_CONF_ACQ_PRE_SAMP:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/trigger/pre-samples",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/trigger/instance-attributes/pre-samples",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/trigger/pre-samples",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/trigger/instance-attributes/pre-samples",
+						value);
 		break;
 	case FMCADC_CONF_ACQ_DECIMATION:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/sample-decimation",
-					value);
+			return fa_zio_sysfs_set(fa,
+						"cset0/instance-attributes/sample-decimation",
+						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/sample-decimation",
-					value);
+			return fa_zio_sysfs_get(fa,
+						"cset0/instance-attributes/sample-decimation",
+						value);
 		break;
 	case FMCADC_CONF_ACQ_FREQ_HZ:
 		if (direction) {
@@ -281,28 +301,32 @@ static int fmcadc_zio_config_chn(struct __fmcadc_dev_zio *fa, unsigned int ch,
 
 	switch (index) {
 	case FMCADC_CONF_CHN_RANGE:
-		sprintf(path, "cset%d/ch%d-vref", fa->cset, ch);
+		sprintf(path, "cset%d/instance-attributes/ch%d-vref",
+			fa->cset, ch);
 		if (direction)
 			return fa_zio_sysfs_set(fa, path, value);
 		else
 			return fa_zio_sysfs_get(fa, path, value);
 		break;
 	case FMCADC_CONF_CHN_TERMINATION:
-		sprintf(path, "cset%d/ch%d-50ohm-term", fa->cset, ch);
+		sprintf(path, "cset%d/instance-attributes/ch%d-50ohm-term",
+			fa->cset, ch);
 		if (direction)
 			return fa_zio_sysfs_set(fa, path, value);
 		else
 			return fa_zio_sysfs_get(fa, path, value);
 		break;
 	case FMCADC_CONF_CHN_OFFSET:
-		sprintf(path, "cset%d/ch%d-offset", fa->cset, ch);
+		sprintf(path, "cset%d/instance-attributes/ch%d-offset",
+			fa->cset, ch);
 		if (direction)
 			return fa_zio_sysfs_set(fa, path, value);
 		else
 			return fa_zio_sysfs_get(fa, path, value);
 		break;
 	case FMCADC_CONF_CHN_SATURATION:
-		sprintf(path, "cset%d/ch%d-saturation", fa->cset, ch);
+		sprintf(path, "cset%d/instance-attributes/ch%d-saturation",
+			fa->cset, ch);
 		if (direction)
 			return fa_zio_sysfs_set(fa, path, value);
 		else
@@ -321,23 +345,28 @@ static int fmcadc_zio_config_brd(struct __fmcadc_dev_zio *fa,
 	switch (index) {
 	case FMCADC_CONF_UTC_TIMING_BASE_S:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/tstamp-base-s",
+			return fa_zio_sysfs_set(fa,
+						"cset0/instance-attributes/tstamp-base-s",
 						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/tstamp-base-s",
+			return fa_zio_sysfs_get(fa,
+						"cset0/instance-attributes/tstamp-base-s",
 						value);
 		break;
 	case FMCADC_CONF_UTC_TIMING_BASE_T:
 		if (direction)
-			return fa_zio_sysfs_set(fa, "cset0/tstamp-base-t",
+			return fa_zio_sysfs_set(fa,
+						"cset0/instance-attributes/tstamp-base-t",
 						value);
 		else
-			return fa_zio_sysfs_get(fa, "cset0/tstamp-base-t",
+			return fa_zio_sysfs_get(fa,
+						"cset0/instance-attributes/tstamp-base-t",
 						value);
 		break;
 	case FMCADC_CONF_BRD_STATE_MACHINE_STATUS:
 		if (!direction)
-			return fa_zio_sysfs_get(fa, "cset0/fsm-state",
+			return fa_zio_sysfs_get(fa,
+						"cset0/instance-attributes/fsm-state",
 						value);
 		errno = EINVAL;
 		return -1;
@@ -363,12 +392,16 @@ static int fmcadc_zio_config(struct __fmcadc_dev_zio *fa, unsigned int flags,
 
 	/* Disabling the trigger before changing configuration */
 	if (direction) {
-		err = fa_zio_sysfs_get(fa, "cset0/trigger/enable", &enabled);
+		err = fa_zio_sysfs_get(fa,
+				       "cset0/trigger/enable",
+				       &enabled);
 		if (err)
 			return err;
 		if (enabled) {
 			enabled = 0;
-			err = fa_zio_sysfs_set(fa, "cset0/trigger/enable", &enabled);
+			err = fa_zio_sysfs_set(fa,
+					       "cset0/trigger/enable",
+					       &enabled);
 			/* restore the initial value */
 			enabled = 1;
 		}

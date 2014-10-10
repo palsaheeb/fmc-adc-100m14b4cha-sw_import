@@ -177,7 +177,7 @@ int fmcadc_zio_acq_start(struct fmcadc_dev *dev,
 		if (fmcadc_flush_input(fa) < 0)
 			return -1;
 
-	err = fa_zio_sysfs_set(fa, "cset0/fsm-command", &cmd);
+	err = fa_zio_sysfs_set(fa, "cset0/instance-attributes/fsm-command", &cmd);
 	if (err)
 		return err;
 
@@ -192,7 +192,7 @@ int fmcadc_zio_acq_stop(struct fmcadc_dev *dev,	unsigned int flags)
 	struct __fmcadc_dev_zio *fa = to_dev_zio(dev);
 	uint32_t cmd = 2; /* hw command for "stop" */
 
-	return fa_zio_sysfs_set(fa, "cset0/fsm-command", &cmd);
+	return fa_zio_sysfs_set(fa, "cset0/instance-attributes/fsm-command", &cmd);
 }
 
 
