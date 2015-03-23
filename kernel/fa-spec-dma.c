@@ -41,15 +41,17 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 	item->dma_addr_h = (uint64_t)sg_dma_address(sg) >> 32;
 	item->dma_len = sg_dma_len(sg);
 
-	if (!sg_is_last(sg)) {/* more transfers */
+	if (sg_is_last(sg) && zsg->block_idx == zsg->zsgt->n_blocks - 1) {
+		item->attribute = 0x0;	/* last item */
+		pr_debug("This will be the last dma transfer\n");
+	} else {
+		/* more transfers */
 		/* uint64_t so it works on 32 and 64 bit */
 		tmp = zsg->zsgt->dma_page_desc_pool;
 		tmp += (zsg->zsgt->page_desc_size * (zsg->page_idx + 1));
 		item->next_addr_l = ((uint64_t)tmp) & 0xFFFFFFFF;
 		item->next_addr_h = ((uint64_t)tmp) >> 32;
 		item->attribute = 0x1;	/* more items */
-	} else {
-		item->attribute = 0x0;	/* last item */
 	}
 
 	/* The first item is written on the device */
