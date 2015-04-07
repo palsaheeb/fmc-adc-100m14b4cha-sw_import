@@ -81,7 +81,7 @@ int zfad_dma_start(struct zio_cset *cset)
 		zfad_block[0].dev_mem_off = dev_mem_off;
 	}
 
-	dev_dbg(&fa->fmc->dev, "Start DMA transfer\n");
+	dev_info(&fa->fmc->dev, "Start DMA transfer\n");
 	err = fa->carrier_op->dma_start(cset);
 	if (err)
 		return err;
@@ -218,7 +218,7 @@ void zfat_irq_acq_end(struct zio_cset *cset)
 {
 	struct fa_dev *fa = cset->zdev->priv_d;
 
-	dev_dbg(&fa->fmc->dev, "Acquisition done\n");
+	dev_info(&fa->fmc->dev, "Acquisition done\n");
 	/*
 	 * because the driver doesn't listen anymore trig-event
 	 * we agreed that the HW will provide a dedicated register

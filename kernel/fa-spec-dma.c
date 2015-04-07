@@ -47,8 +47,10 @@ static int gncore_dma_fill(struct zio_dma_sg *zsg)
 	} else {
 		/* more transfers */
 		/* uint64_t so it works on 32 and 64 bit */
-		tmp = zsg->zsgt->dma_page_desc_pool;
-		tmp += (zsg->zsgt->page_desc_size * (zsg->page_idx + 1));
+		tmp = zsg->zsgt->page_desc_pool_dma_next;
+		//tmp = zsg->zsgt->dma_page_desc_pool;
+                //tmp += (zsg->zsgt->page_desc_size * (zsg->page_idx + 1));
+
 		item->next_addr_l = ((uint64_t)tmp) & 0xFFFFFFFF;
 		item->next_addr_h = ((uint64_t)tmp) >> 32;
 		item->attribute = 0x1;	/* more items */
@@ -122,9 +124,11 @@ int fa_spec_dma_start(struct zio_cset *cset)
 	if (err)
 		goto out_map_sg;
 
+	dev_dbg(&fa->fmc->dev, "Starting DMA\n");
 	/* Start DMA transfer */
 	fa_writel(fa, spec_data->fa_dma_base,
 			&fa_spec_regs[ZFA_DMA_CTL_START], 1);
+	dev_dbg(&fa->fmc->dev, "Started DMA\n");
 	return 0;
 
 out_map_sg:
