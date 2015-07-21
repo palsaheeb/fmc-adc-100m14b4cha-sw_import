@@ -15,7 +15,7 @@
 #include <sys/time.h>
 
 #include <linux/zio-user.h>
-#include <fmcadc-lib.h>
+#include <adc-lib.h>
 #include <fmc-adc-100m14b4cha.h>
 
 /* Subtract the `struct timespec' values X and Y,
@@ -56,8 +56,8 @@ static void fald_help()
 
 int main (int argc, char *argv[])
 {
-	struct fmcadc_dev *adc;
-	struct fmcadc_conf brd_cfg;
+	struct adc_dev *adc;
+	struct adc_conf brd_cfg;
 	struct timespec sys_start, sys_cur, adc_cur, dlt_ts, dlt_dlt_ts = {0, 0};
 	int err, devid, interval = 360;
 	uint32_t adc_sec, adc_ticks;
@@ -65,7 +65,7 @@ int main (int argc, char *argv[])
 
 	/* Prepare the board timing base configuration */
 	memset(&brd_cfg, 0, sizeof(brd_cfg));
-	brd_cfg.type = FMCADC_CONT_TYPE_BRD;
+	brd_cfg.type = ADC_CONT_TYPE_BRD;
 
 	while ((c = getopt(argc, argv, "i:h")) >= 0) {
 		switch (c) {
@@ -83,10 +83,10 @@ int main (int argc, char *argv[])
 
 	sscanf(argv[argc-1], "%x", &devid);
 
-	adc = fmcadc_open("fmc-adc-100m14b4cha", devid, 0, 0, FMCADC_F_FLUSH);
+	adc = adc_open("fmc-adc-100m14b4cha", devid, 0, 0, ADC_F_FLUSH);
 	if (!adc) {
 		fprintf(stderr, "%s: cannot open device: %s",
-			argv[0], fmcadc_strerror(errno));
+			argv[0], adc_strerror(errno));
 		exit(1);
 	}
 
@@ -102,12 +102,12 @@ int main (int argc, char *argv[])
 	/* Configure ADC internal clock */
 	adc_sec = sys_start.tv_sec;
 	adc_ticks = sys_start.tv_nsec / FA100M14B4C_UTC_CLOCK_NS;
-	fmcadc_set_conf(&brd_cfg, FMCADC_CONF_UTC_TIMING_BASE_T, adc_ticks);
-	fmcadc_set_conf(&brd_cfg, FMCADC_CONF_UTC_TIMING_BASE_S, adc_sec);
-	err = fmcadc_apply_config(adc, 0 , &brd_cfg);
-	if (err && errno != FMCADC_ENOMASK) {
+	adc_set_conf(&brd_cfg, ADC_CONF_UTC_TIMING_BASE_T, adc_ticks);
+	adc_set_conf(&brd_cfg, ADC_CONF_UTC_TIMING_BASE_S, adc_sec);
+	err = adc_apply_config(adc, 0 , &brd_cfg);
+	if (err && errno != ADC_ENOMASK) {
 		fprintf(stderr, "%s: cannot configure board %s\n",
-			argv[0], fmcadc_strerror(errno));
+			argv[0], adc_strerror(errno));
 		exit(1);
 	}
 	fprintf(stdout,
@@ -127,15 +127,15 @@ int main (int argc, char *argv[])
 		}
 
 		/* Get the ADC clock */
-		err = fmcadc_retrieve_config(adc, &brd_cfg);
+		err = adc_retrieve_config(adc, &brd_cfg);
 		if (err) {
 			fprintf(stderr, "%s: cannot get trigger config: %s\n",
-				argv[0], fmcadc_strerror(errno));
+				argv[0], adc_strerror(errno));
 			exit(1);
 		}
-		fmcadc_get_conf(&brd_cfg, FMCADC_CONF_UTC_TIMING_BASE_S,
+		adc_get_conf(&brd_cfg, ADC_CONF_UTC_TIMING_BASE_S,
 				&adc_sec);
-		fmcadc_get_conf(&brd_cfg, FMCADC_CONF_UTC_TIMING_BASE_T,
+		adc_get_conf(&brd_cfg, ADC_CONF_UTC_TIMING_BASE_T,
 				&adc_ticks);
 		adc_cur.tv_sec = adc_sec;
 		adc_cur.tv_nsec = adc_ticks * FA100M14B4C_UTC_CLOCK_NS;

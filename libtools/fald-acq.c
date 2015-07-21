@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #include <linux/zio-user.h>
-#include <fmcadc-lib.h>
+#include <adc-lib.h>
 #include <fmc-adc-100m14b4cha.h>
 
 #ifdef DEBUG
@@ -33,7 +33,7 @@
 #define fald_print_debug(format, ...)
 #endif
 
-static void fald_acq_stop(struct fmcadc_dev *adc, char *called_from);
+static void fald_acq_stop(struct adc_dev *adc, char *called_from);
 
 static void fald_help()
 {
@@ -63,7 +63,7 @@ static void fald_help()
 	printf("  --help|-h                show this help\n\n");
 }
 
-static int trg_cfgval[__FMCADC_CONF_LEN]; /* FIXME: this is not used */
+static int trg_cfgval[__ADC_CONF_LEN]; /* FIXME: this is not used */
 static struct option options[] = {
 	{"before",	required_argument, 0, 'b'},
 	{"after",	required_argument, 0, 'a'},
@@ -71,12 +71,12 @@ static struct option options[] = {
 	{"delay",	required_argument, 0, 'd'},
 	{"under-sample",required_argument, 0, 'u'},
 	{"external", no_argument,
-			&trg_cfgval[FMCADC_CONF_TRG_SOURCE], 1},
+			&trg_cfgval[ADC_CONF_TRG_SOURCE], 1},
 	{"threshold",	required_argument, 0, 't'},
 	{"channel",	required_argument, 0, 'c'},
 	{"timeout",	required_argument, 0, 'T'},
 	{"negative-edge", no_argument,
-			&trg_cfgval[FMCADC_CONF_TRG_POLARITY], 1},
+			&trg_cfgval[ADC_CONF_TRG_POLARITY], 1},
 
 	/* new options, to help stress-test */
 	{"binary",	required_argument, 0, 'B'},
@@ -111,7 +111,7 @@ static int adc_wait_thread_ready;
 static int adc_state;
 static int poll_state;
 static int new_config = 0;
-static struct fmcadc_conf trg_cfg, acq_cfg, ch_cfg;
+static struct adc_conf trg_cfg, acq_cfg, ch_cfg;
 static int show_ndata = INT_MAX; /* by default all values are displayed */
 static int plot_chno = -1;
 static int x_display;
@@ -178,39 +178,39 @@ static void fald_acq_parse_args_and_configure(int argc, char *argv[])
 	       >= 0 ) {
 		switch (c) {
 		case 'b': case 'p': /* before */
-			fprintf(stdout, "FMCADC_CONF_ACQ_PRE_SAMP: %d\n",
+			fprintf(stdout, "ADC_CONF_ACQ_PRE_SAMP: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&acq_cfg, FMCADC_CONF_ACQ_PRE_SAMP,
+			adc_set_conf(&acq_cfg, ADC_CONF_ACQ_PRE_SAMP,
 					atoi(optarg));
 			break;
 		case 'a': case 'P': /* after */
-			fprintf(stdout, "FMCADC_CONF_ACQ_POST_SAMP: %d\n",
+			fprintf(stdout, "ADC_CONF_ACQ_POST_SAMP: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&acq_cfg, FMCADC_CONF_ACQ_POST_SAMP,
+			adc_set_conf(&acq_cfg, ADC_CONF_ACQ_POST_SAMP,
 					atoi(optarg));
 			break;
 		case 'n':
-			fprintf(stdout, "FMCADC_CONF_ACQ_N_SHOTS: %d\n",
+			fprintf(stdout, "ADC_CONF_ACQ_N_SHOTS: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&acq_cfg, FMCADC_CONF_ACQ_N_SHOTS,
+			adc_set_conf(&acq_cfg, ADC_CONF_ACQ_N_SHOTS,
 					atoi(optarg));
 			break;
 		case 'd':
-			fprintf(stdout, "FMCADC_CONF_TRG_DELAY: %d\n",
+			fprintf(stdout, "ADC_CONF_TRG_DELAY: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&trg_cfg, FMCADC_CONF_TRG_DELAY,
+			adc_set_conf(&trg_cfg, ADC_CONF_TRG_DELAY,
 					atoi(optarg));
 			break;
 		case 'u': case 'D':
-			fprintf(stdout, "FMCADC_CONF_ACQ_DECIMATION: %d\n",
+			fprintf(stdout, "ADC_CONF_ACQ_DECIMATION: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&acq_cfg, FMCADC_CONF_ACQ_DECIMATION,
+			adc_set_conf(&acq_cfg, ADC_CONF_ACQ_DECIMATION,
 					atoi(optarg));
 			break;
 		case 't':
-			fprintf(stdout, "FMCADC_CONF_TRG_THRESHOLD: %d\n",
+			fprintf(stdout, "ADC_CONF_TRG_THRESHOLD: %d\n",
 				atoi(optarg));
-			fmcadc_set_conf(&trg_cfg, FMCADC_CONF_TRG_THRESHOLD,
+			adc_set_conf(&trg_cfg, ADC_CONF_TRG_THRESHOLD,
 					atoi(optarg));
 			break;
 		/*
@@ -236,8 +236,8 @@ static void fald_acq_parse_args_and_configure(int argc, char *argv[])
 				bit_scale = 5.0/(1<<15);
 				break;
 			}
-			fprintf(stdout, "FMCADC_CONF_CHN_RANGE: %d\n", val);
-			fmcadc_set_conf(&ch_cfg, FMCADC_CONF_CHN_RANGE,
+			fprintf(stdout, "ADC_CONF_CHN_RANGE: %d\n", val);
+			adc_set_conf(&ch_cfg, ADC_CONF_CHN_RANGE,
 					val);
 			break;
 		case 'c':
@@ -247,15 +247,15 @@ static void fald_acq_parse_args_and_configure(int argc, char *argv[])
 				fald_help();
 				exit(1);
 			}
-			fprintf(stdout, "FMCADC_CONF_TRG_SOURCE_CHAN: %d\n",
+			fprintf(stdout, "ADC_CONF_TRG_SOURCE_CHAN: %d\n",
 				atoi(optarg));
 			/* set internal, and then the channel */
-			trg_cfgval[FMCADC_CONF_TRG_SOURCE] = 0; /* set later */
-			fmcadc_set_conf(&trg_cfg, FMCADC_CONF_TRG_SOURCE_CHAN,
+			trg_cfgval[ADC_CONF_TRG_SOURCE] = 0; /* set later */
+			adc_set_conf(&trg_cfg, ADC_CONF_TRG_SOURCE_CHAN,
 					val - 1);
 			break;
 		case 'e':
-			trg_cfgval[FMCADC_CONF_TRG_SOURCE] = 1;
+			trg_cfgval[ADC_CONF_TRG_SOURCE] = 1;
 			break;
 		case 'T':
 			timeout = atoi(optarg);
@@ -299,10 +299,10 @@ static void fald_acq_parse_args_and_configure(int argc, char *argv[])
 		}
 	}
 	/* Configure trigger (pick trigger polarity from external array) */
-	fmcadc_set_conf(&trg_cfg, FMCADC_CONF_TRG_POLARITY,
-			trg_cfgval[FMCADC_CONF_TRG_POLARITY]);
-	fmcadc_set_conf(&trg_cfg, FMCADC_CONF_TRG_SOURCE,
-			trg_cfgval[FMCADC_CONF_TRG_SOURCE]);
+	adc_set_conf(&trg_cfg, ADC_CONF_TRG_POLARITY,
+			trg_cfgval[ADC_CONF_TRG_POLARITY]);
+	adc_set_conf(&trg_cfg, ADC_CONF_TRG_SOURCE,
+			trg_cfgval[ADC_CONF_TRG_SOURCE]);
 }
 
 
@@ -314,33 +314,33 @@ static void fald_acq_parse_args_and_configure(int argc, char *argv[])
  * @param[in] ch_cfg channel configuration status
  * @return 0 on success, otherwise -1 and errno is appropriately set
  */
-static void fald_acq_apply_config(struct fmcadc_dev *adc,
-				  struct fmcadc_conf *trg_cfg,
-				  struct fmcadc_conf *acq_cfg,
-				  struct fmcadc_conf *ch_cfg)
+static void fald_acq_apply_config(struct adc_dev *adc,
+				  struct adc_conf *trg_cfg,
+				  struct adc_conf *acq_cfg,
+				  struct adc_conf *ch_cfg)
 {
 	int err;
 
-	err = fmcadc_apply_config(adc, 0 , trg_cfg);
-	if (err && errno != FMCADC_ENOMASK) {
+	err = adc_apply_config(adc, 0 , trg_cfg);
+	if (err && errno != ADC_ENOMASK) {
 		fprintf(stderr, "%s: cannot configure trigger: %s\n",
-			_argv[0], fmcadc_strerror(errno));
+			_argv[0], adc_strerror(errno));
 		exit(1);
 	}
 
 	/* Configure acquisition parameter */
-	err = fmcadc_apply_config(adc, 0 , acq_cfg);
-	if (err && errno != FMCADC_ENOMASK) {
+	err = adc_apply_config(adc, 0 , acq_cfg);
+	if (err && errno != ADC_ENOMASK) {
 		fprintf(stderr, "%s: cannot configure acquisition: %s\n",
-			_argv[0], fmcadc_strerror(errno));
+			_argv[0], adc_strerror(errno));
 		exit(1);
 	}
 
 	/* Configure channel parameter */
-	err = fmcadc_apply_config(adc, 0 , ch_cfg);
-	if (err && errno != FMCADC_ENOMASK) {
+	err = adc_apply_config(adc, 0 , ch_cfg);
+	if (err && errno != ADC_ENOMASK) {
 		fprintf(stderr, "%s: cannot configure channel0: %s\n",
-			_argv[0], fmcadc_strerror(errno));
+			_argv[0], adc_strerror(errno));
 		exit(1);
 	}
 	// raise new_config flag
@@ -354,23 +354,23 @@ static void fald_acq_apply_config(struct fmcadc_dev *adc,
  * It starts an acquisition
  * @param[in] arg fmc-adc-100m device
  * @param[in] called_from identifier of the parent function
- * @param[in] flag flag for the fmcadc_acq_start() function
+ * @param[in] flag flag for the adc_acq_start() function
  */
-static void fald_acq_start(struct fmcadc_dev *adc, char *called_from, int flag)
+static void fald_acq_start(struct adc_dev *adc, char *called_from, int flag)
 {
 	int try = 5, err;
 	struct timeval tv = {0, 0};
 
-	fald_print_debug("%s : call fmcadc_acq_start with %s\n",
+	fald_print_debug("%s : call adc_acq_start with %s\n",
 			 called_from, ((flag) ? "flush" : "no flush"));
 	while (try) {
-		err = fmcadc_acq_start(adc, flag, &tv);
+		err = adc_acq_start(adc, flag, &tv);
 		if (!err)
 			break;
 
 		/* Cannot start acquisition right now */
 		fprintf(stderr, "%s: cannot start acquisition: %s\n(Retry)\n",
-			_argv[0], fmcadc_strerror(errno));
+			_argv[0], adc_strerror(errno));
 		/* Instead of leaving try another stop/start sequence */
 		fald_acq_stop(adc, "start_adc");
 		/* give a chance to breath in case the error persists */
@@ -403,19 +403,19 @@ static void fald_acq_start(struct fmcadc_dev *adc, char *called_from, int flag)
  * @param[in] arg fmc-adc-100m device
  * @param[in] called_from identifier of the parent function
  */
-static void fald_acq_stop(struct fmcadc_dev *adc, char *called_from)
+static void fald_acq_stop(struct adc_dev *adc, char *called_from)
 {
 	int try = 5, err;
 
 	/* stop any pending acquisition */
-	fald_print_debug("%s: call fmcadc_acq_stop\n", called_from);
+	fald_print_debug("%s: call adc_acq_stop\n", called_from);
 	while (try) {
-		err = fmcadc_acq_stop(adc, 0);
+		err = adc_acq_stop(adc, 0);
 		if (!err)
 			break;
 
 		fprintf(stderr, "%s: cannot stop acquisition: %s\n(Retry)\n",
-			_argv[0], fmcadc_strerror(errno));
+			_argv[0], adc_strerror(errno));
 
 		try--;
 	}
@@ -436,7 +436,7 @@ static void fald_acq_stop(struct fmcadc_dev *adc, char *called_from)
  */
 static void *adc_wait_thread(void *arg)
 {
-	struct fmcadc_dev *adc = arg;
+	struct adc_dev *adc = arg;
 	int err;
 
 	for (;;) {
@@ -448,15 +448,15 @@ static void *adc_wait_thread(void *arg)
 		}
 		poll_state = 0;
 		pthread_mutex_unlock(&mtx);
-		fald_print_debug("It's time to call fmcadc_acq_poll\n");
-		err = fmcadc_acq_poll(adc, 0 , NULL);
+		fald_print_debug("It's time to call adc_acq_poll\n");
+		err = adc_acq_poll(adc, 0 , NULL);
 		if (err) {
-			if (errno == FMCADC_EDISABLED) {
-				fprintf(stderr, "fmcadc_acq_poll has been aborted due to a triiger stop:  err:%d errno:%s(%d)\n",
-					err, fmcadc_strerror(errno), errno);
+			if (errno == ADC_EDISABLED) {
+				fprintf(stderr, "adc_acq_poll has been aborted due to a triiger stop:  err:%d errno:%s(%d)\n",
+					err, adc_strerror(errno), errno);
 				continue;
 			} else {
-				fprintf(stderr, "fmcadc_acq_poll failed:  err:%d errno:%s(%d)\n",
+				fprintf(stderr, "adc_acq_poll failed:  err:%d errno:%s(%d)\n",
 					err, strerror(errno), errno);
 				exit(-1);
 			}
@@ -478,7 +478,7 @@ static void *adc_wait_thread(void *arg)
  */
 static void *change_config_thread(void *arg)
 {
-	struct fmcadc_dev *adc = arg;
+	struct adc_dev *adc = arg;
 	int fd, ret;
 	char adcfifo[128];
 	char *s, *t;
@@ -509,7 +509,7 @@ static void *change_config_thread(void *arg)
 			fald_acq_apply_config(adc, &trg_cfg, &acq_cfg, &ch_cfg);
 			fprintf(stdout, "mainThread: Change trig config ................. done\n");
 
-			fald_acq_start(adc, "change_config", FMCADC_F_FLUSH) ;
+			fald_acq_start(adc, "change_config", ADC_F_FLUSH) ;
 
 		} else {
 			fprintf(stdout, "read returns %d\n", ret);
@@ -529,7 +529,7 @@ static void *change_config_thread(void *arg)
  * scenario and stress the library/driver.
  * @param[in] adc fmc-adc-100m device
  */
-static void create_thread(struct fmcadc_dev *adc)
+static void create_thread(struct adc_dev *adc)
 {
 	/* Config thread */
 	pthread_attr_t thread_attr;
@@ -575,53 +575,53 @@ static void create_thread(struct fmcadc_dev *adc)
  * @param[out] ch_cfg channel configuration status
  * @return 0 on success, otherwise -1 and errno is appropriately set
  */
-static int fald_acq_get_configuration(struct fmcadc_dev *adc,
-				      struct fmcadc_conf *trg_cfg,
-				      struct fmcadc_conf *acq_cfg,
-				      struct fmcadc_conf *ch_cfg)
+static int fald_acq_get_configuration(struct adc_dev *adc,
+				      struct adc_conf *trg_cfg,
+				      struct adc_conf *acq_cfg,
+				      struct adc_conf *ch_cfg)
 {
 	int err;
 
 	/* Retreive trigger configuration */
-	memset(trg_cfg, 0, sizeof(struct fmcadc_conf));
-	trg_cfg->type = FMCADC_CONF_TYPE_TRG;
-	fmcadc_set_conf_mask(trg_cfg, FMCADC_CONF_TRG_SOURCE);
-	fmcadc_set_conf_mask(trg_cfg, FMCADC_CONF_TRG_SOURCE_CHAN);
-	fmcadc_set_conf_mask(trg_cfg, FMCADC_CONF_TRG_THRESHOLD);
-	fmcadc_set_conf_mask(trg_cfg, FMCADC_CONF_TRG_POLARITY);
-	fmcadc_set_conf_mask(trg_cfg, FMCADC_CONF_TRG_DELAY);
-	err = fmcadc_retrieve_config(adc, trg_cfg);
+	memset(trg_cfg, 0, sizeof(struct adc_conf));
+	trg_cfg->type = ADC_CONF_TYPE_TRG;
+	adc_set_conf_mask(trg_cfg, ADC_CONF_TRG_SOURCE);
+	adc_set_conf_mask(trg_cfg, ADC_CONF_TRG_SOURCE_CHAN);
+	adc_set_conf_mask(trg_cfg, ADC_CONF_TRG_THRESHOLD);
+	adc_set_conf_mask(trg_cfg, ADC_CONF_TRG_POLARITY);
+	adc_set_conf_mask(trg_cfg, ADC_CONF_TRG_DELAY);
+	err = adc_retrieve_config(adc, trg_cfg);
 	if (err) {
 		fprintf(stderr, "Cannot get trigger config: %s\n",
-			fmcadc_strerror(errno));
+			adc_strerror(errno));
 		return -1;
 	}
 
 	/* Retreive acquisition configuration */
-	memset(acq_cfg, 0, sizeof(struct fmcadc_conf));
-	acq_cfg->type = FMCADC_CONF_TYPE_ACQ;
-	fmcadc_set_conf_mask(acq_cfg, FMCADC_CONF_ACQ_N_SHOTS);
-	fmcadc_set_conf_mask(acq_cfg, FMCADC_CONF_ACQ_POST_SAMP);
-	fmcadc_set_conf_mask(acq_cfg, FMCADC_CONF_ACQ_PRE_SAMP);
-	fmcadc_set_conf_mask(acq_cfg, FMCADC_CONF_ACQ_DECIMATION);
-	err = fmcadc_retrieve_config(adc, acq_cfg);
+	memset(acq_cfg, 0, sizeof(struct adc_conf));
+	acq_cfg->type = ADC_CONF_TYPE_ACQ;
+	adc_set_conf_mask(acq_cfg, ADC_CONF_ACQ_N_SHOTS);
+	adc_set_conf_mask(acq_cfg, ADC_CONF_ACQ_POST_SAMP);
+	adc_set_conf_mask(acq_cfg, ADC_CONF_ACQ_PRE_SAMP);
+	adc_set_conf_mask(acq_cfg, ADC_CONF_ACQ_DECIMATION);
+	err = adc_retrieve_config(adc, acq_cfg);
 	if (err) {
 		fprintf(stderr, "Cannot get acquisition config: %s\n",
-			fmcadc_strerror(errno));
+			adc_strerror(errno));
 		return -1;
 	}
 
 	/* Retreive channel configuration */
-	memset(ch_cfg, 0, sizeof(struct fmcadc_conf));
-	ch_cfg->type = FMCADC_CONF_TYPE_CHN;
+	memset(ch_cfg, 0, sizeof(struct adc_conf));
+	ch_cfg->type = ADC_CONF_TYPE_CHN;
 	ch_cfg->route_to = 0; /* channel 0 */
-	fmcadc_set_conf_mask(ch_cfg, FMCADC_CONF_CHN_RANGE);
-	fmcadc_set_conf_mask(ch_cfg, FMCADC_CONF_CHN_TERMINATION);
-	fmcadc_set_conf_mask(ch_cfg, FMCADC_CONF_CHN_OFFSET);
-	err = fmcadc_retrieve_config(adc, ch_cfg);
+	adc_set_conf_mask(ch_cfg, ADC_CONF_CHN_RANGE);
+	adc_set_conf_mask(ch_cfg, ADC_CONF_CHN_TERMINATION);
+	adc_set_conf_mask(ch_cfg, ADC_CONF_CHN_OFFSET);
+	err = adc_retrieve_config(adc, ch_cfg);
 	if (err) {
 		fprintf(stderr, "Cannot get channel config: %s\n",
-			fmcadc_strerror(errno));
+			adc_strerror(errno));
 		return -1;
 	}
 
@@ -635,8 +635,8 @@ static int fald_acq_get_configuration(struct fmcadc_dev *adc,
  * @param[in] buf buffer to print
  * @param[in] acq_cfg acquisition configuration associated to the buffer
  */
-static void fald_acq_print_data(struct fmcadc_buffer *buf,
-				struct fmcadc_conf *acq_cfg,
+static void fald_acq_print_data(struct adc_buffer *buf,
+				struct adc_conf *acq_cfg,
 				unsigned int n)
 {
 	struct zio_control *ctrl;
@@ -658,7 +658,7 @@ static void fald_acq_print_data(struct fmcadc_buffer *buf,
 	for (j = 0; j < ctrl->nsamples / 4; j++) {
 		if ( (n > 0 && j < n) ||
 		     (n < 0 && (ctrl->nsamples / 4 - j) <= (-n)) ) {
-			printf("%5i     ", j - acq_cfg->value[FMCADC_CONF_ACQ_PRE_SAMP]);
+			printf("%5i     ", j - acq_cfg->value[ADC_CONF_ACQ_PRE_SAMP]);
 			for (ch = 0; ch < 4; ch++)
 				printf("%7i", *(data++));
 			printf("\n");
@@ -673,7 +673,7 @@ static void fald_acq_print_data(struct fmcadc_buffer *buf,
  * @param[in] buf buffer to store
  * @return 0 on success, otherwise -1 and errno is appropriately set
  */
-static int fald_acq_write_single(struct fmcadc_buffer *buf)
+static int fald_acq_write_single(struct adc_buffer *buf)
 {
 	struct zio_control *ctrl;
 	char fname[PATH_MAX];
@@ -714,7 +714,7 @@ static int fald_acq_write_single(struct fmcadc_buffer *buf)
  * @param[in] shot_i i-th shot acquisition
  * @return 0 on success, otherwise -1 and errno is appropriately set
  */
-static int fald_acq_write_multiple(struct fmcadc_buffer *buf,
+static int fald_acq_write_multiple(struct adc_buffer *buf,
 				   unsigned int shot_i)
 {
 	char fname[PATH_MAX];
@@ -760,7 +760,7 @@ static int fald_acq_write_multiple(struct fmcadc_buffer *buf,
  * @param[in] ch channel to show
  * @return 0 on success, otherwise -1 and errno is appropriately set
  */
-static void fald_acq_plot_data(struct fmcadc_buffer *buf, unsigned int ch)
+static void fald_acq_plot_data(struct adc_buffer *buf, unsigned int ch)
 {
 	struct zio_control *ctrl = buf->metadata;
 	int16_t *data = buf->data;
@@ -784,9 +784,9 @@ static void fald_acq_plot_data(struct fmcadc_buffer *buf, unsigned int ch)
 /**
  * It handles a a shot. Retreive data from the driver and show data
  */
-static int fald_acq_handle_shot(struct fmcadc_dev *adc,
-				struct fmcadc_conf *acq_cfg,
-				struct fmcadc_buffer *buf,
+static int fald_acq_handle_shot(struct adc_dev *adc,
+				struct adc_conf *acq_cfg,
+				struct adc_buffer *buf,
 				unsigned int shot_i)
 {
 	struct zio_control *ctrl;
@@ -795,15 +795,15 @@ static int fald_acq_handle_shot(struct fmcadc_dev *adc,
 	if (binmode < 0) /* no data must be acquired */
 		return -1;
 
-	err = fmcadc_fill_buffer(adc, buf, 0, NULL);
+	err = adc_fill_buffer(adc, buf, 0, NULL);
 	if (err) {
-		if (errno == FMCADC_EDISABLED) {
-			fprintf(stdout, "mainThread: leaves fmcadc_fill_buffer with errno=FMCADC_EDISABLED\n");
+		if (errno == ADC_EDISABLED) {
+			fprintf(stdout, "mainThread: leaves adc_fill_buffer with errno=ADC_EDISABLED\n");
 			return 0;
 		}
 		fprintf(stderr, "shot %i/%i: cannot fill buffer: %s\n", shot_i + 1,
-			acq_cfg->value[FMCADC_CONF_ACQ_N_SHOTS],
-			fmcadc_strerror(errno));
+			acq_cfg->value[ADC_CONF_ACQ_N_SHOTS],
+			adc_strerror(errno));
 	        return -1;
 	}
 
@@ -815,7 +815,7 @@ static int fald_acq_handle_shot(struct fmcadc_dev *adc,
 		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_C]);
 	fprintf(stderr, "Read %d samples from shot %i/%i secs:%lld ticks:%lld (loop: %d)\n",
 		ctrl->nsamples,
-		shot_i + 1, acq_cfg->value[FMCADC_CONF_ACQ_N_SHOTS],
+		shot_i + 1, acq_cfg->value[ADC_CONF_ACQ_N_SHOTS],
 		(long long)ctrl->tstamp.secs, (long long)ctrl->tstamp.ticks, loop);
 
 	/* print/store data*/
@@ -838,8 +838,8 @@ static int fald_acq_handle_shot(struct fmcadc_dev *adc,
 
 int main(int argc, char *argv[])
 {
-	struct fmcadc_dev *adc;
-	struct fmcadc_buffer *buf;
+	struct adc_dev *adc;
+	struct adc_buffer *buf;
 	int i, err;
 
 	if (argc == 1) {
@@ -854,17 +854,17 @@ int main(int argc, char *argv[])
 	sscanf(argv[argc-1], "%x", &devid);
 
 	/* Open the ADC */
-	adc = fmcadc_open("fmc-adc-100m14b4cha", devid,
+	adc = adc_open("fmc-adc-100m14b4cha", devid,
 		/* nshots * (presamples + postsamples) */
 		/*
-		acq.value[FMCADC_CONF_ACQ_N_SHOTS] *
-		( acq.value[FMCADC_CONF_ACQ_PRE_SAMP] +
-		acq.value[FMCADC_CONF_ACQ_POST_SAMP] )*/ 0,
-		/*acq.value[FMCADC_CONF_ACQ_N_SHOTS]*/ 0,
-		FMCADC_F_FLUSH /*0*/);
+		acq.value[ADC_CONF_ACQ_N_SHOTS] *
+		( acq.value[ADC_CONF_ACQ_PRE_SAMP] +
+		acq.value[ADC_CONF_ACQ_POST_SAMP] )*/ 0,
+		/*acq.value[ADC_CONF_ACQ_N_SHOTS]*/ 0,
+		ADC_F_FLUSH /*0*/);
 	if (!adc) {
 		fprintf(stderr, "%s: cannot open device: %s",
-			argv[0], fmcadc_strerror(errno));
+			argv[0], adc_strerror(errno));
 		exit(1);
 	}
 
@@ -881,7 +881,7 @@ int main(int argc, char *argv[])
 	fald_acq_parse_args_and_configure(argc, argv);
 
 	/* fmc-adc-100m work only with ZIO framework */
-	if (strcmp(fmcadc_get_driver_type(adc), "zio")) {
+	if (strcmp(adc_get_driver_type(adc), "zio")) {
 		fprintf(stderr, "%s: not a zio driver, aborting\n", argv[0]);
 		exit(1);
 	}
@@ -897,17 +897,17 @@ int main(int argc, char *argv[])
 	fald_acq_apply_config(adc, &trg_cfg, &acq_cfg, &ch_cfg);
 
 	/* Allocate a first buffer in the default way */
-	buf = fmcadc_request_buffer(adc,
-		acq_cfg.value[FMCADC_CONF_ACQ_PRE_SAMP] +
-		acq_cfg.value[FMCADC_CONF_ACQ_POST_SAMP],
+	buf = adc_request_buffer(adc,
+		acq_cfg.value[ADC_CONF_ACQ_PRE_SAMP] +
+		acq_cfg.value[ADC_CONF_ACQ_POST_SAMP],
 		NULL /* alloc */, 0);
 	if (!buf) {
 		fprintf(stderr, "Cannot allocate buffer (%s)\n",
-			fmcadc_strerror(errno));
+			adc_strerror(errno));
 		exit(1);
 	}
 
-	fald_acq_start(adc, "main", FMCADC_F_FLUSH);
+	fald_acq_start(adc, "main", ADC_F_FLUSH);
 	while (loop > 0) {
 		pthread_mutex_lock(&mtx);
 		while (!adc_state) {
@@ -929,7 +929,7 @@ int main(int argc, char *argv[])
 		adc_state &= ~ADC_STATE_START_ACQ; /* ack time to acquire data */
 		if (new_config && buf != NULL) {
 			/* first release previous buffer */
-			fmcadc_release_buffer(adc, buf, NULL);
+			adc_release_buffer(adc, buf, NULL);
 			buf = NULL;
 			new_config = 0;
 		}
@@ -937,18 +937,18 @@ int main(int argc, char *argv[])
 
 		if (buf == NULL) { /* buf has been released due to a change of trig config */
 			/* Allocate a buffer in the default way */
-			buf = fmcadc_request_buffer(adc,
-				acq_cfg.value[FMCADC_CONF_ACQ_PRE_SAMP] +
-				acq_cfg.value[FMCADC_CONF_ACQ_POST_SAMP],
+			buf = adc_request_buffer(adc,
+				acq_cfg.value[ADC_CONF_ACQ_PRE_SAMP] +
+				acq_cfg.value[ADC_CONF_ACQ_POST_SAMP],
 				NULL /* alloc */, 0);
 			if (!buf) {
 				fprintf(stderr, "Cannot allocate buffer (%s)\n",
-					fmcadc_strerror(errno));
+					adc_strerror(errno));
 				exit(1);
 			}
 		}
 		/* Fill the buffer once for each shot */
-		for (i = 0; i < acq_cfg.value[FMCADC_CONF_ACQ_N_SHOTS]; ++i) {
+		for (i = 0; i < acq_cfg.value[ADC_CONF_ACQ_N_SHOTS]; ++i) {
 			err = fald_acq_handle_shot(adc, &acq_cfg, buf, i);
 			if (err)
 				exit(1);
@@ -960,6 +960,6 @@ int main(int argc, char *argv[])
 		else if (plot_chno != -1)  /* Plot only the last Acquisition */
 			fald_acq_plot_data(buf, plot_chno);
 	}
-	fmcadc_close(adc);
+	adc_close(adc);
 	exit(0);
 }
