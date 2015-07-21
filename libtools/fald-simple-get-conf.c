@@ -18,9 +18,9 @@
 
 static void fald_help()
 {
-	printf("\nfald-simple-get-conf [OPTIONS] 0x<DEVICE ID>\n\n");
-	printf("  <DEVICE>: hexadecimal string which represent the device "
-	       "identificator of an fmc-adc\n");
+	printf("\nfald-simple-get-conf [OPTIONS] <device-name> 0x<device-id>\n\n");
+	printf("  <device-name>: name of the device to open\n");
+	printf("  <device-id>: unique device identifier  (e.g.: \"0x0400\")\n");
 	printf("  --help|-h: show this help\n\n");
 }
 
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 	};
 	int opt_index = 0, err = 0, i;
 	unsigned int dev_id = 0;
-	char c;
+	char c, *devname;
 
 	if (argc == 1) {
 		fald_help();
@@ -56,17 +56,18 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind != argc - 1) {
-		fprintf(stderr, "%s: DEVICE-ID is a mandatory argument\n",
+		fprintf(stderr, "%s: DEVICE-ID and DEVICE-NAME are mandatory arguments\n",
 			argv[0]);
 		fald_help();
 		exit(1);
 	} else {
+		devname = argv[argc - 2];
 		sscanf(argv[optind], "0x%x", &dev_id);
 	}
 
 	printf("Open ADC dev_id 0x%04x ...\n", dev_id);
 	/* Open the ADC */
-	adc = adc_open("adc_100MS_4ch_14bit", dev_id,
+	adc = adc_open(devname, dev_id,
 			  /* no buffers expexted */ 0, 0,
 			  /* no flush either */ 0);
 	if (!adc) {

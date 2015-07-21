@@ -37,8 +37,13 @@ static void fald_acq_stop(struct adc_dev *adc, char *called_from);
 
 static void fald_help()
 {
-	printf("\nfald-simple-acq [OPTIONS] 0x<device-id>\n\n");
-	printf("  <device-id>: FMC identifier  (e.g.: \"0x0400\")\n");
+	int i;
+
+	printf("\nfald-simple-acq [OPTIONS] <device-name> 0x<device-id>\n\n");
+	printf("  <device-name>: name of the device to open\n");
+	for (i = 0; i < __ADC_SUPPORTED_BOARDS_LAST_INDEX; i++)
+		printf("    %s\n", adc_supported_board_names[i]);
+	printf("  <device-id>: unique device identifier  (e.g.: \"0x0400\")\n");
 	printf("  --before|-b <num>        number of pre samples\n");
 	printf("  --after|-a <num>         n. of post samples (default: 16)\n");
 	printf("  --nshots|-n <num>        number of trigger shots\n");
@@ -845,6 +850,7 @@ int main(int argc, char *argv[])
 {
 	struct adc_dev *adc;
 	struct adc_buffer *buf;
+	char *devname;
 	int i, err;
 
 	if (argc == 1) {
@@ -855,11 +861,13 @@ int main(int argc, char *argv[])
 	}
 	/* set local _argv[0] with  pg name */
 	_argv[0] = argv[0];
-	/* devid is the last arg */
+
+	/* device name and id are the last two arguments */
+	devname = argv[argc - 2];
 	sscanf(argv[argc-1], "%x", &devid);
 
 	/* Open the ADC */
-	adc = adc_open("fmc-adc-100m14b4cha", devid,
+	adc = adc_open(devname, devid,
 		/* nshots * (presamples + postsamples) */
 		/*
 		acq.value[ADC_CONF_ACQ_N_SHOTS] *
