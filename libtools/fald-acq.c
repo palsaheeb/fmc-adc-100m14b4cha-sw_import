@@ -519,6 +519,7 @@ static void *change_config_thread(void *arg)
 			fd = open(adcfifo, O_RDONLY);
 		}
 	}
+	return NULL;
 }
 
 
