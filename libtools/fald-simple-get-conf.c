@@ -18,8 +18,12 @@
 
 static void fald_help()
 {
+	int i;
+
 	printf("\nfald-simple-get-conf [OPTIONS] <device-name> 0x<device-id>\n\n");
 	printf("  <device-name>: name of the device to open\n");
+	for (i = 0; i < __ADC_SUPPORTED_BOARDS_LAST_INDEX; i++)
+		printf("    %s\n", adc_board_name[i]);
 	printf("  <device-id>: unique device identifier  (e.g.: \"0x0400\")\n");
 	printf("  --help|-h: show this help\n\n");
 }
