@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <errno.h>
-#include <linux/zio-user.h>
 #include <adc-lib.h>
 
 /* Global configuration*/

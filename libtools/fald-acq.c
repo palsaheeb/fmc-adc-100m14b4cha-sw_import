@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
+#include <inttypes.h>
 #include <linux/zio-user.h>
 #include <adc-lib.h>
 #include <fmc-adc-100m14b4cha.h>
@@ -119,6 +119,8 @@ static int binmode;
 static int timeout = -1;
 static int loop = 1;
 static char *basefile;
+static unsigned int nsamples = 0;
+static unsigned int ssize = 0;
 #define MAX_BUF 512
 static char buf_fifo[MAX_BUF];
 static char *_argv[16];
@@ -639,25 +641,23 @@ static void fald_acq_print_data(struct adc_buffer *buf,
 				struct adc_conf *acq_cfg,
 				unsigned int n)
 {
-	struct zio_control *ctrl;
 	int j, ch;
 	int16_t *data;  /* FMC-ADC-100M sample size is 14bit, 16bit for ZIO */
 
 	if (n == 0)
 		return;
 
-	ctrl = buf->metadata;
-	if (ctrl->nsamples / 4 != buf->nsamples) {
-		fprintf(stdout, "discrepancy between ctrl->nsamples: %d and buf->nsamples: %d\n",
-			ctrl->nsamples, buf->nsamples);
+	if (nsamples / 4 != buf->nsamples) {
+		fprintf(stdout, "discrepancy between nsamples: %d and buf->nsamples: %d\n",
+			nsamples, buf->nsamples);
 		return;
 	}
 
 	data = buf->data;
 	/* Print data */
-	for (j = 0; j < ctrl->nsamples / 4; j++) {
+	for (j = 0; j < nsamples / 4; j++) {
 		if ( (n > 0 && j < n) ||
-		     (n < 0 && (ctrl->nsamples / 4 - j) <= (-n)) ) {
+		     (n < 0 && (nsamples / 4 - j) <= (-n)) ) {
 			printf("%5i     ", j - acq_cfg->value[ADC_CONF_ACQ_PRE_SAMP]);
 			for (ch = 0; ch < 4; ch++)
 				printf("%7i", *(data++));
@@ -688,14 +688,14 @@ static int fald_acq_write_single(struct adc_buffer *buf)
 			fname, strerror(errno));
 		exit(1);
 	}
-
+	/* FIXME ctrl is ZIO specific, library should provide metadata size
+	   at least */
 	ctrl = buf->metadata;
 	if (fwrite(ctrl, sizeof(struct zio_control), 1, f) != 1)
 		err++;
 
 	data = buf->data;
-	if (fwrite(data, ctrl->ssize, ctrl->nsamples, f)
-	    != ctrl->nsamples)
+	if (fwrite(data, ssize, nsamples, f) != nsamples)
 		err++;
 
 	if (err) {
@@ -717,11 +717,14 @@ static int fald_acq_write_single(struct adc_buffer *buf)
 static int fald_acq_write_multiple(struct adc_buffer *buf,
 				   unsigned int shot_i)
 {
-	char fname[PATH_MAX];
 	struct zio_control *ctrl;
+	char fname[PATH_MAX];
 	uint16_t *data;
 	FILE *f;
 
+	/* FIXME zio control is specific. The library should provide
+	   at least the metadata size so that automatic tools can at least
+	   read */
 	sprintf(fname, "%s.%03i.ctrl", basefile, shot_i);
 	f = fopen(fname, "w");
 	if (!f) {
@@ -744,8 +747,8 @@ static int fald_acq_write_multiple(struct adc_buffer *buf,
 		return -1;
 	}
 	data = buf->data;
-	if (fwrite(data, ctrl->ssize, ctrl->nsamples, f)
-	    != ctrl->nsamples) {
+	if (fwrite(data, ssize, nsamples, f)
+	    != nsamples) {
 		fprintf(stderr, "write(%s): short write\n", fname);
 		return -1;
 	}
@@ -762,13 +765,12 @@ static int fald_acq_write_multiple(struct adc_buffer *buf,
  */
 static void fald_acq_plot_data(struct adc_buffer *buf, unsigned int ch)
 {
-	struct zio_control *ctrl = buf->metadata;
 	int16_t *data = buf->data;
 	char fname[PATH_MAX];
 	char cmd[256];
 
 	snprintf(fname, sizeof(fname), "/tmp/fmcadc.0x%04x.ch%d.dat", devid, ch);
-	if (write_file(fname, ch, data, (ctrl->nsamples)/4) < 0) {
+	if (write_file(fname, ch, data, (nsamples)/4) < 0) {
 		printf("Cannot plot data. Write data into file %s failed.\n", fname);
 		return;
 	}
@@ -790,6 +792,7 @@ static int fald_acq_handle_shot(struct adc_dev *adc,
 				unsigned int shot_i)
 {
 	struct zio_control *ctrl;
+	struct adc_timestamp ts;
 	int err;
 
 	if (binmode < 0) /* no data must be acquired */
@@ -813,10 +816,12 @@ static int fald_acq_handle_shot(struct adc_dev *adc,
 	fprintf(stderr, "Acquisition started at secs:%u ticks:%u\n",
 		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_S],
 		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_C]);
-	fprintf(stderr, "Read %d samples from shot %i/%i secs:%lld ticks:%lld (loop: %d)\n",
-		ctrl->nsamples,
+	adc_tstamp_buffer(buf, &ts);
+	fprintf(stderr,
+		"nsamples %d | shot %i/%i | secs:%"PRIu64" ticks:%"PRIu64" (loop: %d)\n",
+		nsamples,
 		shot_i + 1, acq_cfg->value[ADC_CONF_ACQ_N_SHOTS],
-		(long long)ctrl->tstamp.secs, (long long)ctrl->tstamp.ticks, loop);
+		ts.secs, ts.ticks, loop);
 
 	/* print/store data*/
 	switch(binmode) {
@@ -868,23 +873,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* Before parsing args : */
-	/* First retrieve current config in case the program */
-	/* is launched with a subset of options */
+	/* Before parsing args :
+	   First retrieve current config in case the program
+	   is launched with a subset of options */
 	err = fald_acq_get_configuration(adc, &trg_cfg, &acq_cfg, &ch_cfg);
 	if (err) {
 		exit(1);
 	}
 
-	/* get the new given trigger and acq config */
-	/* Only the ones provided will override the current ones */
+	/* get the new given trigger and acq config
+	   Only the ones provided will override the current ones */
 	fald_acq_parse_args_and_configure(argc, argv);
-
-	/* fmc-adc-100m work only with ZIO framework */
-	if (strcmp(adc_get_driver_type(adc), "zio")) {
-		fprintf(stderr, "%s: not a zio driver, aborting\n", argv[0]);
-		exit(1);
-	}
 
 	/* create the various thread and sync mechanism */
 	create_thread(adc);
@@ -896,11 +895,13 @@ int main(int argc, char *argv[])
 	fald_acq_stop(adc, "main");
 	fald_acq_apply_config(adc, &trg_cfg, &acq_cfg, &ch_cfg);
 
+	/* Get total number of samples */
+	nsamples = acq_cfg.value[ADC_CONF_ACQ_PRE_SAMP] +
+		acq_cfg.value[ADC_CONF_ACQ_POST_SAMP];
+	/* get sample size - round up */
+	ssize = (acq_cfg.value[ADC_CONF_ACQ_N_BITS] + (8 - 1)) / 8;
 	/* Allocate a first buffer in the default way */
-	buf = adc_request_buffer(adc,
-		acq_cfg.value[ADC_CONF_ACQ_PRE_SAMP] +
-		acq_cfg.value[ADC_CONF_ACQ_POST_SAMP],
-		NULL /* alloc */, 0);
+	buf = adc_request_buffer(adc, nsamples, NULL /* alloc */, 0);
 	if (!buf) {
 		fprintf(stderr, "Cannot allocate buffer (%s)\n",
 			adc_strerror(errno));

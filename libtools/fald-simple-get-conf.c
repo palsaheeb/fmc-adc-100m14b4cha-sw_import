@@ -14,7 +14,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <linux/zio-user.h>
 #include <adc-lib.h>
 
 static void fald_help()
