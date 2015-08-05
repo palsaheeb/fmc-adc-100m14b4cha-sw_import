@@ -10,3 +10,6 @@
 [submodule "svec-sw"]
 	path = svec-sw
 	url = git://ohwr.org/fmc-projects/svec/svec-sw.git
+[submodule "adc-lib"]
+	path = adc-lib
+	url = git://ohwr.org/misc/adc-lib.git
