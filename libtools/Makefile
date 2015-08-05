@@ -5,11 +5,11 @@
 
 DESTDIR ?= /usr/local
 
-LIBADC = ../lib/
+LIBADC = ../adc-lib/lib/
 ZIO ?= ../zio
 
 CFLAGS = -Wall -g -ggdb -I$(LIBADC) -I$(ZIO)/include -I../kernel $(EXTRACFLAGS)
-LDFLAGS = -L$(LIBADC) -lfmcadc -lpthread -lrt
+LDFLAGS = -static -L$(LIBADC) -ladc -Wl,-dy -lpthread -lrt
 
 DEMOS := fald-simple-acq fald-acq fald-trg-cfg 
 DEMOS += fald-simple-get-conf
@@ -25,7 +25,7 @@ install:
 	install -d $(DESTDIR)/bin
 	install -D $(DEMOS) $(DESTDIR)/bin
 
-%: %.c $(LIBADC)/libfmcadc.a
+%: %.c $(LIBADC)/libadc.a
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 # make nothing for modules_install, but avoid errors

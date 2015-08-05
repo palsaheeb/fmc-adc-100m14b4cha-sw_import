@@ -2,7 +2,7 @@
 .PHONY: all clean modules install modules_install clean_all
 .PHONY: gitmodules prereq prereq_install prereq_install_warn prereq_clean
 
-DIRS = kernel tools lib libtools
+DIRS = kernel tools adc-lib libtools
 
 all clean modules install modules_install: gitmodules
 	@if echo $@ | grep -q install; then $(MAKE) prereq_install_warn; fi
@@ -25,11 +25,17 @@ gitmodules:
 #
 # Use the absolute path so it can be used by submodule
 CURDIR ?= $(shell pwd)
+
+FMCADC100M ?= $(CURDIR)
+export FMCADC100M
+
 FMC_BUS ?= $(CURDIR)/fmc-bus
 export FMC_BUS
 ZIO ?= $(CURDIR)/zio
+export ZIO
 ZIO_VERSION = $(shell cd $(ZIO); git describe --always --dirty --long --tags)
 export ZIO_VERSION
+
 SPEC_SW ?= $(CURDIR)/spec-sw
 SUBMOD = $(FMC_BUS) $(ZIO) $(SPEC_SW)
 
