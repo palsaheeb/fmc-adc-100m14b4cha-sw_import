@@ -5,7 +5,7 @@
 
 DESTDIR ?= /usr/local
 
-LIBADC = ../lib/
+LIBADC = ../adc-lib/lib/
 ZIO ?= ../zio
 
 CFLAGS = -Wall -g -ggdb -I$(LIBADC) -I$(ZIO)/include -I../kernel $(EXTRACFLAGS)
