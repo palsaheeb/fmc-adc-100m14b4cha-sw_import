@@ -298,9 +298,6 @@ end:
 		dev_dbg(&fa->fmc->dev, "Automatic start\n");
 		zfad_fsm_command(fa, FA100M14B4C_CMD_START);
 	}
-
-	/* ack the irq */
-	fmc_irq_ack(fa->fmc);
 }
 
 /*
@@ -352,9 +349,10 @@ irqreturn_t fa_irq_handler(int irq_core_base, void *dev_id)
 	struct zfad_block *zfad_block;
 
 	/* irq to handle */
-	fa_get_irq_status(fa, irq_core_base, &status);
-	if (!status)
+	fa_get_irq_status(fa, fa->fa_irq_adc_base, &status);
+	if (!status) {
 		return IRQ_NONE; /* No interrupt fired by this mezzanine */
+	}
 
 	dev_dbg(&fa->fmc->dev, "Handle ADC interrupts fmc slot: %d\n",
 		fmc->slot_id);
@@ -381,15 +379,12 @@ irqreturn_t fa_irq_handler(int irq_core_base, void *dev_id)
 			/* register the core firing the IRQ in order to */
 			/* check right IRQ seq.: ACQ_END followed by DMA_END */
 			fa->last_irq_core_src = irq_core_base;
-		} else /* current Acquiistion has been stopped */
-			fmc_irq_ack(fmc);
+		}
 	} else { /* unexpected interrupt we have to ack anyway */
 		dev_err(&fa->fmc->dev,
 			"%s unexpected interrupt 0x%x\n",
 			__func__, status);
-		fmc_irq_ack(fmc);
 	}
-
 	return IRQ_HANDLED;
 
 }
@@ -402,22 +397,9 @@ int fa_setup_irqs(struct fa_dev *fa)
 	/* Request IRQ */
 	dev_dbg(&fa->fmc->dev, "%s request irq fmc slot: %d\n",
 		__func__, fa->fmc->slot_id);
-	/* VIC svec setup */
-	fa_writel(fa, fa->fa_irq_vic_base,
-			&zfad_regs[ZFA_IRQ_VIC_CTRL],
-			0x3);
-	fa_writel(fa, fa->fa_irq_vic_base,
-			&zfad_regs[ZFA_IRQ_VIC_ENABLE_MASK],
-			0x3);
 
-	/* trick : vic needs the base address of teh core firing the irq
-	 * It cannot provided throught irq_request() call therefore the trick
-	 * is to set it by means of the field irq provided by the fmc device
-	 */
-	fmc->irq = fa->fa_irq_adc_base;
-	err = fmc_irq_request(fmc, fa_irq_handler,
-			      "fmc-adc-100m14b",
-			      0 /*VIC is used */);
+	err = request_irq(25, fa_irq_handler, IRQF_SHARED,
+			  "fmc-adc-100m14b", fmc);
 	if (err) {
 		dev_err(&fa->fmc->dev, "can't request irq %i (error %i)\n",
 			fa->fmc->irq, err);
@@ -444,8 +426,7 @@ int fa_free_irqs(struct fa_dev *fa)
 		fa->carrier_op->free_irqs(fa);
 
 	/* Release ADC IRQs */
-	fmc->irq = fa->fa_irq_adc_base;
-	fmc_irq_free(fmc);
+	free_irq(25, fmc);
 
 	return 0;
 }

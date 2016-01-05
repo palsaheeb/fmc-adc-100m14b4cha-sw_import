@@ -281,45 +281,13 @@ int zfad_fsm_command(struct fa_dev *fa, uint32_t command)
 /* which are not carrier specific */
 static int __fa_sdb_get_device(struct fa_dev *fa)
 {
-	struct fmc_device *fmc = fa->fmc;
-	struct device *dev = fmc->hwdev;
-	int ret;
-
-	ret = fmc_scan_sdb_tree(fmc, 0);
-	if (ret == -EBUSY) {
-		/* Not a problem, it's already there. We assume that
-		   it's the correct one */
-		ret = 0;
-	}
-	if (ret < 0) {
-		dev_err(dev,
-			"%s: no SDB in the bitstream."
-			"Are you sure you've provided the correct one?\n",
-			KBUILD_MODNAME);
-		return ret;
-	}
-
-	/* FIXME: this is obsoleted by fmc-bus internal parameters */
-	if (fa_show_sdb)
-		fmc_show_sdb_tree(fmc);
-
-	/* Now use SDB to find the base addresses */
-	fa->fa_irq_vic_base = fmc_find_sdb_device(fmc->sdb, 0xce42,
-						  0x13, NULL);
-	fa->fa_adc_csr_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42,
-						      0x608,
-						      fmc->slot_id, NULL);
-	fa->fa_irq_adc_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42,
-						      0x26ec6086,
-						      fmc->slot_id, NULL);
-	fa->fa_utc_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42,
-						  0x604, fmc->slot_id, NULL);
-	fa->fa_spi_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42, 0xe503947e,
-							fmc->slot_id, NULL);
-	fa->fa_ow_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42, 0x779c5443,
-							fmc->slot_id, NULL);
-
-	return ret;
+	fa->fa_irq_vic_base = 0x1300;
+	fa->fa_adc_csr_base = 0x3300;
+	fa->fa_irq_adc_base = 0x3500;
+	fa->fa_utc_base = 0x3600;
+	fa->fa_spi_base = 0x3100;
+	fa->fa_ow_base = 0x3400;
+	return 0;
 }
 
 /*

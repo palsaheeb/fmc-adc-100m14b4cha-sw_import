@@ -123,6 +123,7 @@ int fa_spec_dma_start(struct zio_cset *cset)
 	/* Start DMA transfer */
 	fa_writel(fa, spec_data->fa_dma_base,
 			&fa_spec_regs[ZFA_DMA_CTL_START], 1);
+
 	return 0;
 
 out_map_sg:

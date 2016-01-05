@@ -26,18 +26,15 @@ static int fa_spec_init(struct fa_dev *fa)
 	struct fa_spec_data *cdata;
 	uint32_t val;
 
-	fa->fa_carrier_csr_base = fmc_find_sdb_device(fa->fmc->sdb, 0xce42,
-						      0x603, NULL);
+	fa->fa_carrier_csr_base = 0x1200;
 
 	cdata = kzalloc(sizeof(struct fa_spec_data), GFP_KERNEL);
 	if (!cdata)
 		return -ENOMEM;
 
 	/* SDB carrier specific */
-	cdata->fa_dma_base =
-	    fmc_find_sdb_device(fa->fmc->sdb, 0xce42, 0x601, NULL);
-	cdata->fa_irq_dma_base =
-	    fmc_find_sdb_device(fa->fmc->sdb, 0xce42, 0xd5735ab4, NULL);
+	cdata->fa_dma_base = 0x1000;
+	cdata->fa_irq_dma_base = 0x1400;
 
 	dev_info(msgdev,
 		"Spec Base addrs: irq_dmma:0x%x, dma_ctrl:0x%x, csr:0x%x\n",
@@ -46,7 +43,6 @@ static int fa_spec_init(struct fa_dev *fa)
 
 	/* Wait 50ms, so device has time to calibrate */
 	mdelay(50);
-
 	/* set FMC0 in normal FMC operation */
 	fa_writel(fa, fa->fa_carrier_csr_base,
 			&fa_spec_regs[ZFA_CAR_FMC_RES], 1);
@@ -58,6 +54,7 @@ static int fa_spec_init(struct fa_dev *fa)
 		dev_err(msgdev, "No FCM ADC plugged\n");
 		return -ENODEV;
 	}
+
 	/* Verify that system PLL is locked (1 is calibrated) */
 	val = fa_readl(fa, fa->fa_carrier_csr_base,
 		       &fa_spec_regs[ZFA_CAR_SYS_PLL]);
@@ -65,6 +62,7 @@ static int fa_spec_init(struct fa_dev *fa)
 		dev_err(msgdev, "System PLL not locked\n");
 		return -ENODEV;
 	}
+
 	/* Verify that DDR3 calibration is done (1 is calibrated) */
 	val = fa_readl(fa, fa->fa_carrier_csr_base,
 		       &fa_spec_regs[ZFA_CAR_DDR_CAL]);
@@ -80,6 +78,7 @@ static int fa_spec_init(struct fa_dev *fa)
 	/* register carrier data */
 	fa->carrier_data = cdata;
 	dev_info(msgdev, "spec::%s successfully executed\n", __func__);
+
 	return 0;
 }
 
@@ -125,9 +124,8 @@ static int fa_spec_setup_irqs(struct fa_dev *fa)
 	 * It cannot provided throught irq_request() call therefore the trick
 	 * is to set it by means of the field irq provided by the fmc device
 	 */
-	fmc->irq = spec_data->fa_irq_dma_base;
-	err = fmc_irq_request(fmc, fa_spec_irq_handler,
-			      "fmc-adc-100m14b", 0);
+	err = request_irq(26, fa_spec_irq_handler, IRQF_SHARED,
+			  "gn4124-dma", fmc);
 	if (err) {
 		dev_err(&fmc->dev, "can't request irq 0x%x (error %i)\n",
 			fmc->irq, err);
@@ -148,8 +146,7 @@ static int fa_spec_free_irqs(struct fa_dev *fa)
 	struct fa_spec_data *spec_data = fa->carrier_data;
 
 	/* Release DMA IRQs */
-	fmc->irq = spec_data->fa_irq_dma_base;
-	fmc_irq_free(fmc);
+	free_irq(26, fmc);
 
 	fmc_gpio_config(fmc, fa_gpio_off, ARRAY_SIZE(fa_gpio_off));
 

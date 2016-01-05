@@ -5,7 +5,6 @@
  * IRQ function handler
  */
 
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/timer.h>
@@ -64,10 +63,11 @@ irqreturn_t fa_spec_irq_handler(int irq_core_base, void *ptr)
 	struct fmc_device *fmc = ptr;
 	struct fa_dev *fa = fmc_get_drvdata(fmc);
 	struct zio_cset *cset = fa->zdev->cset;
+	struct fa_spec_data *spec_data = fa->carrier_data;
 	uint32_t status;
 
 	/* irq to handle */
-	fa_get_irq_status(fa, irq_core_base, &status);
+	fa_get_irq_status(fa, spec_data->fa_irq_dma_base, &status);
 	if (!status)
 		return IRQ_NONE;
 
@@ -114,9 +114,6 @@ out:
 	spin_lock(&cset->lock);
 	cset->flags &= ~ZIO_CSET_HW_BUSY;
 	spin_unlock(&cset->lock);
-
-	/* ack the irq */
-	fmc_irq_ack(fa->fmc);
 
 	return IRQ_HANDLED;
 }
