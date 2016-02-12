@@ -124,7 +124,7 @@ static int fa_spec_setup_irqs(struct fa_dev *fa)
 	 * It cannot provided throught irq_request() call therefore the trick
 	 * is to set it by means of the field irq provided by the fmc device
 	 */
-	err = request_irq(26, fa_spec_irq_handler, IRQF_SHARED,
+	err = request_irq(fmc->irq + 1, fa_spec_irq_handler, IRQF_SHARED,
 			  "gn4124-dma", fmc);
 	if (err) {
 		dev_err(&fmc->dev, "can't request irq 0x%x (error %i)\n",
@@ -146,7 +146,7 @@ static int fa_spec_free_irqs(struct fa_dev *fa)
 	struct fa_spec_data *spec_data = fa->carrier_data;
 
 	/* Release DMA IRQs */
-	free_irq(26, fmc);
+	free_irq(fmc->irq + 1, fmc);
 
 	fmc_gpio_config(fmc, fa_gpio_off, ARRAY_SIZE(fa_gpio_off));
 

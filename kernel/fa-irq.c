@@ -398,7 +398,7 @@ int fa_setup_irqs(struct fa_dev *fa)
 	dev_dbg(&fa->fmc->dev, "%s request irq fmc slot: %d\n",
 		__func__, fa->fmc->slot_id);
 
-	err = request_irq(25, fa_irq_handler, IRQF_SHARED,
+	err = request_irq(fmc->irq, fa_irq_handler, IRQF_SHARED,
 			  "fmc-adc-100m14b", fmc);
 	if (err) {
 		dev_err(&fa->fmc->dev, "can't request irq %i (error %i)\n",
@@ -426,7 +426,7 @@ int fa_free_irqs(struct fa_dev *fa)
 		fa->carrier_op->free_irqs(fa);
 
 	/* Release ADC IRQs */
-	free_irq(25, fmc);
+	free_irq(fmc->irq, fmc);
 
 	return 0;
 }
