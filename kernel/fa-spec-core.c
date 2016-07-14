@@ -49,7 +49,7 @@ static int fa_spec_init(struct fa_dev *fa)
 
 	/* set FMC0 in normal FMC operation */
 	fa_writel(fa, fa->fa_carrier_csr_base,
-			&fa_spec_regs[ZFA_CAR_FMC_RES], 1);
+			&fa_spec_regs[ZFA_CAR_FMC_RES], 0);
 
 	/* Verify that the FMC is plugged (0 is plugged) */
 	val = fa_readl(fa, fa->fa_carrier_csr_base,

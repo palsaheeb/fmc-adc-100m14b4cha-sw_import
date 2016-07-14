@@ -46,11 +46,11 @@ static int fa_svec_init(struct fa_dev *fa)
 	if (fmc->slot_id == 0)
 		/* set FMC0 in normal FMC operation */
 		fa_writel(fa, fa->fa_carrier_csr_base,
-			&fa_svec_regfield[FA_CAR_FMC0_RES], 1);
+			&fa_svec_regfield[FA_CAR_FMC0_RES], 0);
 	else if (fmc->slot_id == 1)
 		/* set FMC1 in normal FMC operation */
 		fa_writel(fa, fa->fa_carrier_csr_base,
-			&fa_svec_regfield[FA_CAR_FMC1_RES], 1);
+			&fa_svec_regfield[FA_CAR_FMC1_RES], 0);
 
 	/* register carrier data */
 	fa->carrier_data = cdata;
