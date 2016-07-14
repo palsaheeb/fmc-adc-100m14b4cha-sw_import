@@ -22,13 +22,13 @@ const struct zfa_field_desc zfad_regs[] = {
 	[ZFA_STA_SERDES_SYNCED] =	{0x04, 0x00000010, 1},
 	/* Trigger */
 		/* Config register */
-	[ZFAT_CFG_HW_SEL] =		{0x08, 0x00000001, 1},
-	[ZFAT_CFG_HW_POL] =		{0x08, 0x00000002, 1},
-	[ZFAT_CFG_HW_EN] =		{0x08, 0x00000004, 1},
-	[ZFAT_CFG_SW_EN] =		{0x08, 0x00000008, 1},
-	[ZFAT_CFG_INT_SEL] =		{0x08, 0x00000030, 1},
-	[ZFAT_CFG_TEST_EN] =		{0x08, 0x00000040, 1},
-	[ZFAT_CFG_THRES_FILT] =		{0x08, 0x0000FF00, 1},
+	[ZFAT_CFG_HW_SEL] =		{0x08, 0x00000003, 1},
+	[ZFAT_CFG_HW_POL] =		{0x08, 0x00000004, 1},
+	[ZFAT_CFG_HW_EN] =		{0x08, 0x00000008, 1},
+	[ZFAT_CFG_SW_EN] =		{0x08, 0x00000010, 1},
+	[ZFAT_CFG_INT_SEL] =		{0x08, 0x00000060, 1},
+	[ZFAT_CFG_TEST_EN] =		{0x08, 0x00000080, 1},
+	[ZFAT_CFG_THRES_FILT] =	{0x08, 0x0000FF00, 1},
 	[ZFAT_CFG_THRES] =		{0x08, 0xFFFF0000, 1},
 		/* Delay */
 	[ZFAT_DLY] =			{0x0C, 0xFFFFFFFF, 0},
