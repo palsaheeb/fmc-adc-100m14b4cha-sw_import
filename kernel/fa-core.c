@@ -316,6 +316,7 @@ static int __fa_sdb_get_device(struct fa_dev *fa)
 						  0x604, fmc->slot_id, NULL);
 	fa->fa_spi_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42, 0xe503947e,
 							fmc->slot_id, NULL);
+	/* FIXME add +1 to slot offset to skip the carrier OW */
 	fa->fa_ow_base = fmc_find_sdb_device_ext(fmc->sdb, 0xce42, 0x779c5443,
 							fmc->slot_id, NULL);
 
