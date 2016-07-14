@@ -330,6 +330,7 @@ static int __fa_init(struct fa_dev *fa)
 	struct device *hwdev = fa->fmc->hwdev;
 	struct device *msgdev = &fa->fmc->dev;
 	struct zio_device *zdev = fa->zdev;
+	uint64_t sec;
 	int i, addr;
 
 	/* Check if hardware supports 64-bit DMA */
@@ -397,8 +398,11 @@ static int __fa_init(struct fa_dev *fa)
 	zfad_init_saturation(fa);
 
 	/* Set UTC seconds from the kernel seconds */
-	fa_writel(fa, fa->fa_utc_base, &zfad_regs[ZFA_UTC_SECONDS],
-		  get_seconds());
+	sec = get_seconds();
+	fa_writel(fa, fa->fa_utc_base, &zfad_regs[ZFA_UTC_SECONDS_L],
+		  sec);
+	fa_writel(fa, fa->fa_utc_base, &zfad_regs[ZFA_UTC_SECONDS_H],
+		  sec >> 32);
 
 	/*
 	 * Set Trigger delay in order to compensate

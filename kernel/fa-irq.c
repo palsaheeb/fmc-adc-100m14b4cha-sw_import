@@ -117,22 +117,23 @@ void zfad_dma_done(struct zio_cset *cset)
 	 * start timetag on every blocks
 	 */
 	ztstamp.secs = fa_readl(fa, fa->fa_utc_base,
-				&zfad_regs[ZFA_UTC_ACQ_START_SECONDS]);
+				&zfad_regs[ZFA_UTC_ACQ_START_SECONDS_H]);
+	ztstamp.secs <<= 32;
+	ztstamp.secs |= fa_readl(fa, fa->fa_utc_base,
+				 &zfad_regs[ZFA_UTC_ACQ_START_SECONDS_L]);
 	ztstamp.ticks = fa_readl(fa, fa->fa_utc_base,
 				 &zfad_regs[ZFA_UTC_ACQ_START_COARSE]);
-	ztstamp.bins = fa_readl(fa, fa->fa_utc_base,
-				&zfad_regs[ZFA_UTC_ACQ_START_FINE]);
+	ztstamp.bins = 0;
 	for (i = 0; i < fa->n_shots; ++i) {
 		block = zfad_block[i].block;
 		ctrl = zio_get_ctrl(block);
 		trig_timetag = (uint32_t *)(block->data + block->datalen
 					    - FA_TRIG_TIMETAG_BYTES);
-		/* Timetag marker (metadata) used for debugging */
-		dev_dbg(&fa->fmc->dev, "trig_timetag metadata of the shot %d"
-			" (expected value: 0x6fc8ad2d): 0x%x\n",
-			i, *trig_timetag);
-		ctrl->tstamp.secs = *(++trig_timetag);
+		ctrl->tstamp.secs = *(trig_timetag);
+		ctrl->tstamp.secs <<= 32;
+		ctrl->tstamp.secs |= *(++trig_timetag);
 		ctrl->tstamp.ticks = *(++trig_timetag);
+		/* useless in WR design because not used - deprecated */
 		ctrl->tstamp.bins = *(++trig_timetag);
 
 		/* Acquisition start Timetag */

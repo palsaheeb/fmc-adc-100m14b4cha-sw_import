@@ -71,14 +71,12 @@ static struct zio_attribute zfad_cset_ext_zattr[] = {
 
 	/* last acquisition start time stamp */
 	ZIO_ATTR_EXT("tstamp-acq-str-s", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_START_SECONDS, 0),
+			ZFA_UTC_ACQ_START_SECONDS_L, 0),
 	ZIO_ATTR_EXT("tstamp-acq-str-t", ZIO_RO_PERM,
 			ZFA_UTC_ACQ_START_COARSE, 0),
-	ZIO_ATTR_EXT("tstamp-acq-str-b", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_START_FINE, 0),
 
 	/* Timing base */
-	ZIO_ATTR_EXT("tstamp-base-s", ZIO_RW_PERM, ZFA_UTC_SECONDS, 0),
+	ZIO_ATTR_EXT("tstamp-base-s", ZIO_RW_PERM, ZFA_UTC_SECONDS_L, 0),
 
 	ZIO_ATTR_EXT("tstamp-base-t", ZIO_RW_PERM, ZFA_UTC_COARSE, 0),
 
@@ -108,18 +106,14 @@ static struct zio_attribute zfad_cset_ext_zattr[] = {
 	ZIO_PARAM_EXT("fsm-state", ZIO_RO_PERM, ZFA_STA_FSM, 0),
 	/* last acquisition end time stamp */
 	ZIO_PARAM_EXT("tstamp-acq-end-s", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_END_SECONDS, 0),
+			ZFA_UTC_ACQ_END_SECONDS_L, 0),
 	ZIO_PARAM_EXT("tstamp-acq-end-t", ZIO_RO_PERM,
 			ZFA_UTC_ACQ_END_COARSE, 0),
-	ZIO_PARAM_EXT("tstamp-acq-end-b", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_END_FINE, 0),
 	/* last acquisition stop time stamp */
 	ZIO_PARAM_EXT("tstamp-acq-stp-s", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_STOP_SECONDS, 0),
+			ZFA_UTC_ACQ_STOP_SECONDS_L, 0),
 	ZIO_PARAM_EXT("tstamp-acq-stp-t", ZIO_RO_PERM,
 			ZFA_UTC_ACQ_STOP_COARSE, 0),
-	ZIO_PARAM_EXT("tstamp-acq-stp-b", ZIO_RO_PERM,
-			ZFA_UTC_ACQ_STOP_FINE, 0),
 	/* Reset all channel offset */
 	ZIO_PARAM_EXT("rst-ch-offset", ZIO_WO_PERM, ZFA_CTL_DAC_CLR_N, 1),
 
@@ -178,7 +172,7 @@ static int zfad_conf_set(struct device *dev, struct zio_attribute *zattr,
 	reg_index = zattr->id;
 	i = FA100M14B4C_NCHAN;
 
-	if (zattr->id >= ZFA_UTC_SECONDS && zattr->id <= ZFA_UTC_ACQ_END_FINE)
+	if (zattr->id >= ZFA_UTC_SECONDS_H && zattr->id <= ZFA_UTC_ACQ_END_COARSE)
 		baseoff = fa->fa_utc_base;
 
 	switch (reg_index) {
@@ -286,7 +280,7 @@ static int zfad_info_get(struct device *dev, struct zio_attribute *zattr,
 
 	i = FA100M14B4C_NCHAN;
 
-	if (zattr->id >= ZFA_UTC_SECONDS && zattr->id <= ZFA_UTC_ACQ_END_FINE)
+	if (zattr->id >= ZFA_UTC_SECONDS_H && zattr->id <= ZFA_UTC_ACQ_END_COARSE)
 		baseoff = fa->fa_utc_base;
 
 	switch (zattr->id) {
