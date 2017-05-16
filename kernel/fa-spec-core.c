@@ -191,7 +191,4 @@ struct fa_carrier_op fa_spec_op = {
 	.enable_irqs = fa_spec_enable_irqs,
 	.disable_irqs = fa_spec_disable_irqs,
 	.ack_irq = fa_spec_ack_irq,
-	.dma_start = fa_spec_dma_start,
-	.dma_done = fa_spec_dma_done,
-	.dma_error = fa_spec_dma_error,
 };

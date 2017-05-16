@@ -361,6 +361,8 @@ static int zfat_arm_trigger(struct zio_ti *ti)
 		dev_mem_off += size;
 		dev_dbg(fa->msgdev, "next dev_mem_off 0x%x (+%d)\n",
 			dev_mem_off, size);
+
+		zfad_block[i].cset = ti->cset;
 	}
 
 	err = ti->cset->raw_io(ti->cset);

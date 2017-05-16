@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/version.h>
+#include <linux/dmaengine.h>
 
 #include "fmc-adc-100m14b4cha.h"
 
@@ -611,6 +612,10 @@ static struct fmc_driver fa_dev_drv = {
 static int fa_init(void)
 {
 	int ret;
+
+	dma_cap_zero(dma_mask);
+	dma_cap_set(DMA_SLAVE, dma_mask);
+	dma_cap_set(DMA_PRIVATE, dma_mask);
 
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
 	fa_workqueue = alloc_workqueue(fa_dev_drv.driver.name,

@@ -91,6 +91,7 @@ enum fa100m14b4c_fsm_state {
 
 
 #ifdef __KERNEL__ /* All the rest is only of kernel users */
+#include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
@@ -281,9 +282,6 @@ struct fa_carrier_op {
 	int (*enable_irqs) (struct fa_dev *);
 	int (*disable_irqs) (struct fa_dev *);
 	int (*ack_irq) (struct fa_dev *, int irq_id);
-	int (*dma_start)(struct zio_cset *cset);
-	void (*dma_done)(struct zio_cset *cset);
-	void (*dma_error)(struct zio_cset *cset);
 };
 
 /* ADC and DAC Calibration, from  EEPROM */
@@ -332,6 +330,7 @@ struct fa_dev {
 
 	/* DMA description */
 	struct zio_dma_sgt *zdma;
+	struct sg_table sgt;
 
 	/* carrier specific functions (init/exit/reset/readout/irq handling) */
 	struct fa_carrier_op *carrier_op;
@@ -348,6 +347,7 @@ struct fa_dev {
 	/* Acquisition */
 	unsigned int		n_shots;
 	unsigned int		n_fires;
+	unsigned int		transfers_left;
 	unsigned int		mshot_max_samples;
 
 	/* Statistic informations */
@@ -382,11 +382,19 @@ struct fa_dev {
  * @dev_mem_off is the offset in ADC internal memory. It points to the first
  *              sample of the stored shot
  * @first_nent is the index of the first nent used for this block
+ * @cset: channel set source for the block
+ * @tx: DMA transfer descriptor
+ * @cookie: transfer token
  */
 struct zfad_block {
 	struct zio_block *block;
 	uint32_t	dev_mem_off;
 	unsigned int first_nent;
+	struct zio_cset *cset;
+	struct dma_async_tx_descriptor *tx;
+	dma_cookie_t cookie;
+	struct sg_table sgt;
+	void *dma_ctx;
 };
 
 /*
@@ -521,6 +529,7 @@ extern int fa_enable_irqs(struct fa_dev *fa);
 extern int fa_disable_irqs(struct fa_dev *fa);
 
 /* functions exported by fa-dma.c */
+extern dma_cap_mask_t dma_mask;
 extern void fa_irq_work(struct work_struct *work);
 extern void zfad_dma_done(struct zio_cset *cset);
 extern void zfad_dma_error(struct zio_cset *cset);
