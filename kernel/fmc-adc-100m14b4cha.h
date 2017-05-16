@@ -512,7 +512,6 @@ extern int zfad_dma_start(struct zio_cset *cset);
 extern void zfad_dma_done(struct zio_cset *cset);
 extern void zfad_dma_error(struct zio_cset *cset);
 extern void zfat_irq_trg_fire(struct zio_cset *cset);
-extern void zfat_irq_acq_end(struct zio_cset *cset);
 extern int fa_setup_irqs(struct fa_dev *fa);
 extern int fa_free_irqs(struct fa_dev *fa);
 extern int fa_enable_irqs(struct fa_dev *fa);

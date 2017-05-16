@@ -200,36 +200,6 @@ void zfad_dma_error(struct zio_cset *cset)
 			"DMA error occurs but no block was acquired\n");
 }
 
-/*
- * zfat_irq_acq_end
- * @fa: fmc-adc descriptor
- *
- * The ADC end the acquisition, so, if the state machine is idle, we can
- * retrieve data from the ADC DDR memory.
- */
-void zfat_irq_acq_end(struct zio_cset *cset)
-{
-	struct fa_dev *fa = cset->zdev->priv_d;
-
-	dev_dbg(fa->msgdev, "Acquisition done\n");
-	/*
-	 * because the driver doesn't listen anymore trig-event
-	 * we agreed that the HW will provide a dedicated register
-	 * to check the real number of shots in order to compare it
-	 * with the requested one.
-	 * This ultimate check is not crucial because the HW implements
-	 * a solid state machine and acq-end can happens only after
-	 * the execution of the n requested shots.
-	 */
-	fa->n_fires = fa->n_shots - fa_readl(fa, fa->fa_adc_csr_base,
-					     &zfad_regs[ZFAT_SHOTS_REM]);
-
-	if (fa->n_fires != fa->n_shots) {
-		dev_err(fa->msgdev,
-			"Expected %i trigger fires, but %i occurs\n",
-			fa->n_shots, fa->n_fires);
-	}
-}
 
 /*
  * job executed within a work thread
@@ -249,7 +219,20 @@ static void fa_irq_work(struct work_struct *work)
 	struct zio_cset *cset = fa->zdev->cset;
 	int res;
 
-	zfat_irq_acq_end(cset);
+	/*
+	 * This check is not crucial because the HW implements
+	 * a solid state machine and acq-end can happens only after
+	 * the execution of the n requested shots.
+	 */
+	fa->n_fires = fa->n_shots - fa_readl(fa, fa->fa_adc_csr_base,
+					     &zfad_regs[ZFAT_SHOTS_REM]);
+
+	if (fa->n_fires != fa->n_shots) {
+		dev_err(fa->msgdev,
+			"Expected %i trigger fires, but %i occurs\n",
+			fa->n_shots, fa->n_fires);
+	}
+
 	res = zfad_dma_start(cset);
 	if (!res) {
 		/*
