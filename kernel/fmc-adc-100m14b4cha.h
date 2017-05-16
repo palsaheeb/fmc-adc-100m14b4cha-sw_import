@@ -508,14 +508,16 @@ extern int fa_trig_init(void);
 extern void fa_trig_exit(void);
 
 /* Functions exported by fa-irq.c */
-extern int zfad_dma_start(struct zio_cset *cset);
-extern void zfad_dma_done(struct zio_cset *cset);
-extern void zfad_dma_error(struct zio_cset *cset);
 extern void zfat_irq_trg_fire(struct zio_cset *cset);
 extern int fa_setup_irqs(struct fa_dev *fa);
 extern int fa_free_irqs(struct fa_dev *fa);
 extern int fa_enable_irqs(struct fa_dev *fa);
 extern int fa_disable_irqs(struct fa_dev *fa);
+
+/* functions exported by fa-dma.c */
+extern void fa_irq_work(struct work_struct *work);
+extern void zfad_dma_done(struct zio_cset *cset);
+extern void zfad_dma_error(struct zio_cset *cset);
 
 /* Functions exported by onewire.c */
 extern int fa_onewire_init(struct fa_dev *fa);

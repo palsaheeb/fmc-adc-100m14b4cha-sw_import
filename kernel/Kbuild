@@ -47,6 +47,7 @@ fmc-adc-100m14b-y += fa-calibration.o
 fmc-adc-100m14b-y += fa-regtable.o
 fmc-adc-100m14b-y += fa-zio-trg.o
 fmc-adc-100m14b-y += fa-irq.o
+fmc-adc-100m14b-y += fa-dma.o
 fmc-adc-100m14b-y += onewire.o
 fmc-adc-100m14b-y += spi.o
 fmc-adc-100m14b-y += fmc-util.o
