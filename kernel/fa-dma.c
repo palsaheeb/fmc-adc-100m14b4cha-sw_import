@@ -7,6 +7,75 @@
 
 
 /**
+ * zfad_disable_trigger
+ * @ti: ZIO trigger instance
+ *
+ * It disables the trigger.
+ */
+static void zfad_trigger_disable(struct zio_ti *ti)
+{
+	struct zio_cset *cset = ti->cset;
+	struct fa_dev *fa = cset->zdev->priv_d;
+
+	fa_writel(fa, fa->fa_adc_csr_base, &zfad_regs[ZFAT_CFG_HW_EN], 0);
+	fa_writel(fa, fa->fa_adc_csr_base, &zfad_regs[ZFAT_CFG_SW_EN], 0);
+}
+
+
+/**
+ * zfad_mem_offset
+ * @cset: ZIO channel set
+ * It gets the memory offset of the first sample. Useful in single shot mode
+ */
+static uint32_t zfad_mem_offset(struct zio_cset *cset)
+{
+	struct fa_dev *fa = cset->zdev->priv_d;
+	struct zio_control *ctrl = cset->chan[FA100M14B4C_NCHAN].current_ctrl;
+	uint32_t pre_samp, trg_pos, dev_mem_off;
+
+	/* get pre-samples from the current control (interleave chan) */
+	pre_samp = ctrl->attr_trigger.std_val[ZIO_ATTR_TRIG_PRE_SAMP];
+	/* Get trigger position in DDR */
+	trg_pos = fa_readl(fa, fa->fa_adc_csr_base,
+			   &zfad_regs[ZFAT_POS]);
+	/*
+	 * compute mem offset (in bytes): pre-samp is converted to
+	 * bytes
+	 */
+	dev_mem_off = trg_pos - (pre_samp * cset->ssize * FA100M14B4C_NCHAN);
+	dev_dbg(fa->msgdev,
+		"Trigger @ 0x%08x, pre_samp %i, offset 0x%08x\n",
+		trg_pos, pre_samp, dev_mem_off);
+
+	return dev_mem_off;
+}
+
+
+/**
+ * zfad_wait_idle
+ * @cset: ZIO channel set
+ * @try: how many times poll for IDLE
+ * @udelay: us between two consecutive delay
+ *
+ * @return: it returns 0 on success. If the IDLE status never comes, then it returns
+ * the status value
+ */
+static int zfad_wait_idle(struct zio_cset *cset, unsigned int try,
+			  unsigned int udelay)
+{
+	struct fa_dev *fa = cset->zdev->priv_d;
+	uint32_t val = 0;
+
+	while (try-- && val != FA100M14B4C_STATE_IDLE) {
+		udelay(udelay);
+		val = fa_readl(fa, fa->fa_adc_csr_base,
+			       &zfad_regs[ZFA_STA_FSM]);
+	}
+
+	return val != FA100M14B4C_STATE_IDLE ? val : 0;
+}
+
+/**
  * It maps the ZIO blocks with an sg table, then it starts the DMA transfer
  * from the ADC to the host memory.
  *
@@ -16,26 +85,18 @@ static int zfad_dma_start(struct zio_cset *cset)
 {
 	struct fa_dev *fa = cset->zdev->priv_d;
 	struct zfad_block *zfad_block = cset->interleave->priv_d;
-	uint32_t dev_mem_off, trg_pos, pre_samp;
-	uint32_t val = 0;
-	int try = 5, err;
+	int err;
 
 	/*
 	 * All programmed triggers fire, so the acquisition is ended.
 	 * If the state machine is _idle_ we can start the DMA transfer.
 	 * If the state machine it is not idle, try again 5 times
 	 */
-	while (try-- && val != FA100M14B4C_STATE_IDLE) {
-		/* udelay(2); */
-		val = fa_readl(fa, fa->fa_adc_csr_base,
-			       &zfad_regs[ZFA_STA_FSM]);
-	}
-
-	if (val != FA100M14B4C_STATE_IDLE) {
-		/* we can't DMA if the state machine is not idle */
+	err = zfad_wait_idle(cset, 5, 0);
+	if (unlikely(err)) {
 		dev_warn(fa->msgdev,
 			 "Can't start DMA on the last acquisition, "
-			 "State Machine is not IDLE (status:%d)\n", val);
+			 "State Machine is not IDLE (status:%d)\n", err);
 		return -EBUSY;
 	}
 
@@ -43,30 +104,11 @@ static int zfad_dma_start(struct zio_cset *cset)
 	 * Disable all triggers to prevent fires between
 	 * different DMA transfers required for multi-shots
 	 */
-	fa_writel(fa, fa->fa_adc_csr_base, &zfad_regs[ZFAT_CFG_HW_EN], 0);
-	fa_writel(fa, fa->fa_adc_csr_base, &zfad_regs[ZFAT_CFG_SW_EN], 0);
+	zfad_trigger_disable(cset->ti);
 
 	/* Fix dev_mem_addr in single-shot mode */
-	if (fa->n_shots == 1) {
-		int nchan = FA100M14B4C_NCHAN;
-		struct zio_control *ctrl = cset->chan[nchan].current_ctrl;
-
-		/* get pre-samples from the current control (interleave chan) */
-		pre_samp = ctrl->attr_trigger.std_val[ZIO_ATTR_TRIG_PRE_SAMP];
-		/* Get trigger position in DDR */
-		trg_pos = fa_readl(fa, fa->fa_adc_csr_base,
-				   &zfad_regs[ZFAT_POS]);
-		/*
-		 * compute mem offset (in bytes): pre-samp is converted to
-		 * bytes
-		 */
-		dev_mem_off = trg_pos - (pre_samp * cset->ssize * nchan);
-		dev_dbg(fa->msgdev,
-			"Trigger @ 0x%08x, pre_samp %i, offset 0x%08x\n",
-			trg_pos, pre_samp, dev_mem_off);
-
-		zfad_block[0].dev_mem_off = dev_mem_off;
-	}
+	if (fa->n_shots == 1)
+		zfad_block[0].dev_mem_off = zfad_mem_offset(cset);
 
 	dev_dbg(fa->msgdev, "Start DMA transfer\n");
 	err = fa->carrier_op->dma_start(cset);
@@ -76,81 +118,100 @@ static int zfad_dma_start(struct zio_cset *cset)
 	return 0;
 }
 
+
 /**
- * It completes a DMA transfer.
- * It tells to the ZIO framework that all blocks are done. Then, it re-enable
- * the trigger for the next acquisition. If the device is configured for
- * continuous acquisition, the function automatically start the next
- * acquisition
+ * zfad_dma_update_block_tstamp
+ * @cset: ZIO channel set
+ * @block: ZIO block
  *
- * @param cset
+ * It updates a give ZIO block
+ * - extract timestamp from data, and copy to control
+ * - remove timestamp from data
  */
-void zfad_dma_done(struct zio_cset *cset)
+static void zfad_update_block_tstamp(struct zio_cset *cset,
+				     struct zio_block *block)
 {
 	struct fa_dev *fa = cset->zdev->priv_d;
-	struct zio_channel *interleave = cset->interleave;
-	struct zfad_block *zfad_block = interleave->priv_d;
-	struct zio_control *ctrl = NULL;
-	struct zio_ti *ti = cset->ti;
-	struct zio_block *block;
-	struct zio_timestamp ztstamp;
-	int i;
+	struct zio_control *ctrl= zio_get_ctrl(block);
 	uint32_t *trig_timetag;
 
-	fa->carrier_op->dma_done(cset);
+	trig_timetag = (uint32_t *)(block->data + block->datalen
+				    - FA_TRIG_TIMETAG_BYTES);
+	/* Timetag marker (metadata) used for debugging */
+	dev_dbg(fa->msgdev, "trig_timetag metadata of "
+		" (expected value: 0x6fc8ad2d): 0x%x\n",
+		*trig_timetag);
+	ctrl->tstamp.secs = *(++trig_timetag);
+	ctrl->tstamp.ticks = *(++trig_timetag);
+	ctrl->tstamp.bins = *(++trig_timetag);
 
-	/* for each shot, set the timetag of each ctrl block by reading the
-	 * trig-timetag appended after the samples. Set also the acquisition
-	 * start timetag on every blocks
-	 */
-	ztstamp.secs = fa_readl(fa, fa->fa_utc_base,
-				&zfad_regs[ZFA_UTC_ACQ_START_SECONDS]);
-	ztstamp.ticks = fa_readl(fa, fa->fa_utc_base,
-				 &zfad_regs[ZFA_UTC_ACQ_START_COARSE]);
-	ztstamp.bins = fa_readl(fa, fa->fa_utc_base,
-				&zfad_regs[ZFA_UTC_ACQ_START_FINE]);
-	for (i = 0; i < fa->n_shots; ++i) {
-		block = zfad_block[i].block;
-		ctrl = zio_get_ctrl(block);
-		trig_timetag = (uint32_t *)(block->data + block->datalen
-					    - FA_TRIG_TIMETAG_BYTES);
-		/* Timetag marker (metadata) used for debugging */
-		dev_dbg(fa->msgdev, "trig_timetag metadata of the shot %d"
-			" (expected value: 0x6fc8ad2d): 0x%x\n",
-			i, *trig_timetag);
-		ctrl->tstamp.secs = *(++trig_timetag);
-		ctrl->tstamp.ticks = *(++trig_timetag);
-		ctrl->tstamp.bins = *(++trig_timetag);
+	/* resize the datalen, by removing the trigger tstamp */
+	block->datalen = block->datalen - FA_TRIG_TIMETAG_BYTES;
 
-		/* Acquisition start Timetag */
-		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_S] =
-								ztstamp.secs;
-		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_C] =
-								ztstamp.ticks;
-		ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_F] =
-								ztstamp.bins;
-
-		/* resize the datalen, by removing the trigger tstamp */
-		block->datalen = block->datalen - FA_TRIG_TIMETAG_BYTES;
-
-		/* update seq num */
-		ctrl->seq_num = i;
-	}
 	/* Sync the channel current control with the last ctrl block*/
-	memcpy(&interleave->current_ctrl->tstamp,
-		&ctrl->tstamp, sizeof(struct zio_timestamp));
-	/* Update sequence number */
-	interleave->current_ctrl->seq_num = ctrl->seq_num;
+	memcpy(&cset->interleave->current_ctrl->tstamp, &ctrl->tstamp,
+	       sizeof(struct zio_timestamp));
+}
+
+
+/**
+ * zfad_dma_update_block_tstamp_start
+ * @cset: ZIO channel set
+ * @block: ZIO block
+ *
+ * It copies the given timestamp into the acquisition start time stamp
+ * attributes
+ */
+static void zfad_update_block_tstamp_start(struct zio_cset *cset,
+					   struct zio_block *block,
+					   struct zio_timestamp *ts)
+{
+	struct zio_control *ctrl = zio_get_ctrl(block);
+
+	/* Acquisition start Timetag */
+	ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_S] = ts->secs;
+	ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_C] = ts->ticks;
+	ctrl->attr_channel.ext_val[FA100M14B4C_DATTR_ACQ_START_F] = ts->bins;
+}
+
+
+/**
+ * zfad_tstamp_start_get
+ * @cset: ZIO channel set
+ * @ts: where to write the timestamp
+ *
+ * It copies the acquisition timestamp from the hardware to the given pointer
+ */
+static void zfad_tstamp_start_get(struct zio_cset *cset, struct zio_timestamp *ts)
+{
+	struct fa_dev *fa = cset->zdev->priv_d;
+
+	ts->secs = fa_readl(fa, fa->fa_utc_base,
+			    &zfad_regs[ZFA_UTC_ACQ_START_SECONDS]);
+	ts->ticks = fa_readl(fa, fa->fa_utc_base,
+			     &zfad_regs[ZFA_UTC_ACQ_START_COARSE]);
+	ts->bins = fa_readl(fa, fa->fa_utc_base,
+			    &zfad_regs[ZFA_UTC_ACQ_START_FINE]);
+}
+
+
+/**
+ * zfad_enable_trigger
+ * @ti: ZIO trigger instance
+ *
+ * It enables the trigger.
+ * Hardware trigger depends on the enable status
+ * of the trigger. Software trigger depends on the previous
+ * status taken form zio attributes (index 5 of extended one)
+ * If the user is using a software trigger, enable the software
+ * trigger.
+ */
+static void zfad_trigger_enable(struct zio_ti *ti)
+{
+	struct zio_cset *cset = ti->cset;
+	struct fa_dev *fa = cset->zdev->priv_d;
 
 	/*
-	 * All DMA transfers done! Inform the trigger about this, so
-	 * it can store blocks into the buffer
-	 */
-	dev_dbg(fa->msgdev, "%i blocks transfered\n", fa->n_shots);
-	zio_trigger_data_done(cset);
-
-	/*
-	 * we can safely re-enable triggers.
 	 * Hardware trigger depends on the enable status
 	 * of the trigger. Software trigger depends on the previous
 	 * status taken form zio attributes (index 5 of extended one)
@@ -167,6 +228,48 @@ void zfad_dma_done(struct zio_cset *cset)
 		fa_writel(fa, fa->fa_adc_csr_base, &zfad_regs[ZFAT_CFG_SW_EN],
 			  1);
 	}
+}
+
+
+/**
+ * It completes a DMA transfer.
+ * It tells to the ZIO framework that all blocks are done. Then, it re-enable
+ * the trigger for the next acquisition. If the device is configured for
+ * continuous acquisition, the function automatically start the next
+ * acquisition
+ *
+ * @param cset
+ */
+void zfad_dma_done(struct zio_cset *cset)
+{
+	struct fa_dev *fa = cset->zdev->priv_d;
+	struct zfad_block *zfad_block = cset->interleave->priv_d;
+	struct zio_timestamp ts;
+	int i;
+
+	fa->carrier_op->dma_done(cset);
+
+	zfad_tstamp_start_get(cset, &ts);
+	for (i = 0; i < fa->n_shots; ++i) {
+		struct zio_control *ctrl = zio_get_ctrl(zfad_block[i].block);
+
+		zfad_update_block_tstamp(cset, zfad_block[i].block);
+		zfad_update_block_tstamp_start(cset, zfad_block[i].block, &ts);
+
+		/* update seq num */
+		ctrl->seq_num = i;
+		cset->interleave->current_ctrl->seq_num = i;
+	}
+
+	/*
+	 * All DMA transfers done! Inform the trigger about this, so
+	 * it can store blocks into the buffer
+	 */
+	dev_dbg(fa->msgdev, "%i blocks transfered\n", fa->n_shots);
+	zio_trigger_data_done(cset);
+
+	/* we can safely re-enable triggers */
+	zfad_trigger_enable(cset->ti);
 }
 
 
