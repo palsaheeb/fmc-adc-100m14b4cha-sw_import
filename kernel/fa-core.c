@@ -35,6 +35,39 @@ static const int zfad_hw_range[] = {
 /* fmc-adc specific workqueue */
 struct workqueue_struct *fa_workqueue;
 
+
+/**
+ * Description:
+ *    The version from the Linux kernel automatically squash contiguous pages.
+ *    Sometimes we do not want to squash (e.g. SVEC)
+ */
+static int sg_alloc_table_from_pages_no_squash(struct sg_table *sgt,
+					       struct page **pages,
+					       unsigned int n_pages,
+					       unsigned long offset,
+					       unsigned long size,
+					       gfp_t gfp_mask)
+{
+	struct scatterlist *sg;
+	int err, i;
+
+	err = sg_alloc_table(sgt, n_pages, GFP_KERNEL);
+	if (unlikely(err))
+		return err;
+
+	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i) {
+		unsigned long chunk_size;
+
+		chunk_size = PAGE_SIZE - offset;
+		sg_set_page(sg, pages[i], min(size, chunk_size), offset);
+		offset = 0;
+		size -= chunk_size;
+	}
+
+	return 0;
+}
+
+
 /*
  * zfad_convert_hw_range
  * @usr_val: range value
@@ -442,6 +475,14 @@ int fa_probe(struct fmc_device *fmc)
 #ifdef CONFIG_FMC_ADC_SVEC
 		fa->carrier_op = &fa_svec_op;
 #endif
+	}
+
+	/* Assign SGT allocation function */
+	if (!strcmp(fmc->carrier_name, "SVEC")) {
+		fa->sg_alloc_table_from_pages = sg_alloc_table_from_pages_no_squash;
+	} else {
+		/* from Linux kernel */
+		fa->sg_alloc_table_from_pages = sg_alloc_table_from_pages;
 	}
 
 	/*
